@@ -1,5 +1,7 @@
 <p align="center">
-  <img src="screenshots/Premium Spa Control.png" alt="Spa Control Banner" width="100%">
+  <img src="Screenshots/Premium%20Spa%20Control.png"
+       alt="Spa Control banner"
+       width="100%">
 </p>
 
 # Spa Control
