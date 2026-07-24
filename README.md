@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="screenshots/Premium Spa Control.png" alt="Spa Control Banner" width="100%">
+</p>
+
+# Spa Control
+
 # Spa Control for Bestway Lay Z Spa
 
 [![Build](https://github.com/lowlander10000/Spa-Control/actions/workflows/build.yml/badge.svg)](https://github.com/lowlander10000/Spa-Control/actions/workflows/build.yml)
