@@ -1,0 +1,16 @@
+<div class="temperature-card">
+  <p>Gewenste temperatuur</p>
+  <h2><span id="targetBig">--</span>°C</h2>
+
+  <div class="temp-row">
+    <button onclick="setTarget(-1)">−</button>
+    <button onclick="setTarget(1)">+</button>
+  </div>
+</div>
+
+<div class="control-list">
+  <button class="control-btn" id="heater" onclick="toggleDevice('heater')">🔥 Verwarming</button>
+  <button class="control-btn" id="filter" onclick="toggleDevice('filter')">💧 Filter</button>
+  <button class="control-btn" id="bubbles" onclick="toggleDevice('bubbles')">🫧 Bubbels</button>
+  <button class="control-btn" id="jets" onclick="toggleDevice('jets')">🌊 Jets</button>
+</div>

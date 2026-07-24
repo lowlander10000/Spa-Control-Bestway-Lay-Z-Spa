@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+
+<html lang="nl">
+<head>
+<meta content="3.0.0" name="app-version"/>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Spa Control</title>
+<link href="/css/app.css?v=3000" rel="stylesheet"/>
+<link href="/manifest.json?v=3000" rel="manifest"/>
+<link href="/icons/favicon-32.png?v=3000" rel="icon" sizes="32x32" type="image/png"/>
+<link href="/icons/apple-touch-icon.png?v=3000" rel="apple-touch-icon" sizes="180x180"/>
+<meta content="Spa Control" name="apple-mobile-web-app-title"/>
+<meta content="yes" name="apple-mobile-web-app-capable"/>
+<meta content="#050b14" name="theme-color"/>
+</head>
+<body>
+<main class="app">
+<header class="top">
+<div>
+<span class="kicker kicker-live"><span aria-label="Verbinding maken" class="ptw-connection connecting" id="connectionStatus" role="status" title="Verbinden"><img alt="" src="/icons/ptw-logo.png"/></span><span>Premium Spa Control</span></span>
+<h1 id="pageTitle">Bestway Lay-Z-Spa</h1>
+</div>
+<div class="top-actions"><button aria-label="Thema wisselen" class="icon-action" id="themeToggle" onclick="toggleTheme()" title="Thema wisselen">☀️</button><button aria-label="Menu openen" class="icon-action" id="menuToggle" onclick="toggleAppMenu()" title="Menu">☰</button></div>
+</header>
+<section class="view active" id="dashboardView">
+<section class="dashboard-status-strip" data-dashboard-card="status">
+<article>
+<span class="status-icon">📶</span>
+<div><small>WiFi</small><strong class="dot red" id="wifiStatus">Offline</strong></div>
+</article>
+<article>
+<span class="status-icon">☁️</span>
+<div><small>MQTT</small><strong class="dot red" id="mqttStatus">Offline</strong></div>
+</article>
+</section>
+<article class="temperature-dashboard-card current-temperature-card" data-dashboard-card="currentTemperature" id="currentTemperatureCard">
+<div class="temperature-card-heading"><span class="temperature-card-icon">🌡️</span><span data-i18n="Huidige temperatuur">Huidige temperatuur</span></div>
+<strong class="temperature-card-value"><span id="temperature">--</span><span class="unit">°C</span></strong>
+<div class="temperature-card-status current-status" id="spaMode"><span>Stand-by</span><span class="status-check" aria-hidden="true">✓</span></div>
+<div class="temperature-wave" aria-hidden="true"><i></i><i></i><i></i></div>
+<span class="visually-hidden" id="tempSmall">--</span><span class="visually-hidden" id="target">--</span>
+</article>
+<article class="temperature-dashboard-card target-temperature-card" data-dashboard-card="targetTemperature" id="targetTemperatureCard">
+<div class="temperature-card-heading"><span class="temperature-card-icon">♨</span><span>Doeltemperatuur</span></div>
+<strong class="temperature-card-value"><span id="targetBig">--</span><span class="unit">°C</span></strong>
+<div class="temperature-card-controls">
+<button aria-label="Doeltemperatuur verlagen" onclick="setTarget(-1)">−</button>
+<span class="heater-control-icon" aria-hidden="true">🔥</span>
+<button aria-label="Doeltemperatuur verhogen" onclick="setTarget(1)">+</button>
+</div>
+<div class="temperature-card-status target-status" id="targetHeatStatus">Verwarming: Uit</div>
+<div class="temperature-wave" aria-hidden="true"><i></i><i></i><i></i></div>
+</article>
+<article class="weather-dashboard-card" data-dashboard-card="weather" id="weatherDashboardCard">
+  <div class="weather-card-head"><span class="weather-card-icon" id="weatherIcon">🌤️</span><div><small data-i18n="Weer">Weer</small><strong id="weatherLocation">Niet ingesteld</strong></div></div>
+  <div class="weather-card-main"><strong id="weatherTemperature">--°C</strong><span id="weatherDescription">Locatie instellen</span></div>
+  <div class="weather-card-details"><span>💧 <b id="weatherRain">--%</b></span><span>💨 <b id="weatherWind">-- km/u</b></span><span id="weatherUpdated">--:--</span></div>
+</article>
+<section class="premium-device-grid" data-dashboard-card="controls">
+<button class="premium-device heater" data-dashboard-button="heater" data-dashboard-button-order="heater" id="heater" onclick="toggleDevice('heater')">
+<span class="device-icon">🔥</span><b>Heater</b><small>OFF</small>
+</button>
+<button class="premium-device filter" data-dashboard-button="filter" data-dashboard-button-order="filter" id="filter" onclick="toggleDevice('filter')">
+<span class="device-icon">💧</span><b>Filter</b><small>OFF</small>
+</button>
+<button class="premium-device bubbles" data-dashboard-button="bubbles" data-dashboard-button-order="bubbles" id="bubbles" onclick="toggleDevice('bubbles')">
+<span class="device-icon">🫧</span><b>Bubbles</b><small>OFF</small>
+</button>
+<button class="premium-device jets" data-dashboard-button="jets" data-dashboard-button-order="jets" id="jets" onclick="toggleDevice('jets')">
+<span class="device-icon">🌊</span><b>Jets</b><small>OFF</small>
+</button>
+<button class="premium-device power" data-dashboard-button="power" data-dashboard-button-order="power" id="power" onclick="toggleDevice('power')">
+<span class="device-icon">⏻</span><b>Power</b><small>OFF</small>
+</button>
+</section>
+<section class="smart-summary premium-summary" data-dashboard-card="summary" id="smartSummary">
+<article><span>Lokale tijd</span><strong id="dashboardClock">--:--</strong><small id="dashboardDate">--</small></article>
+<article><span>Energie</span><strong id="dashboardKwh">-- kWh</strong><small id="dashboardCost">--</small></article>
+<article><span>Tijdsync</span><strong id="dashboardTimeSync">--</strong><small id="dashboardTimeZone">--</small></article>
+</section>
+<section class="smart-insight-card" data-dashboard-card="insight" data-dashboard-widget="insight" id="smartInsightCard">
+<div><span class="smart-insight-icon">✦</span><div><small data-i18n="smartStatus">Slimme status</small><strong id="smartInsightTitle">Spa gereed</strong><p id="smartInsightText">Live gegevens worden geanalyseerd.</p></div></div>
+</section>
+<section class="premium-system-list" data-dashboard-card="system">
+<article><span>🖥️ IP-adres</span><strong id="ip">--</strong></article>
+<article><span>🕒 Uptime</span><strong id="uptime">--</strong></article>
+</section>
+</section>
+<section class="view" id="controlView">
+<section class="page-head"><div><span class="kicker">Lay-Z-Spa</span><h2>Bedieningspaneel</h2></div></section>
+<section class="control-panel-grid">
+<button class="control-panel-button power" id="controlPower" onclick="toggleDevice('power')"><span>⏻</span><b>Aan / uit</b><small>OFF</small></button>
+<button class="control-panel-button" id="controlLock" onclick="pressSpaButton('lock')"><span>🔒</span><b>Vergrendeling</b><small>Vrij</small></button>
+<button class="control-panel-button" id="controlUnit" onclick="toggleDevice('unit')"><span>°C/°F</span><b>Eenheid</b><small>°C</small></button>
+<button class="control-panel-button" id="controlTimer" onclick="pressSpaButton('timer')"><span>⏱️</span><b>Timer</b><small>Uit</small></button>
+<button class="control-panel-button heater" id="controlHeater" onclick="toggleDevice('heater')"><span>🔥</span><b>Heater</b><small>OFF</small></button>
+<button class="control-panel-button filter" id="controlFilter" onclick="toggleDevice('filter')"><span>💧</span><b>Filter</b><small>OFF</small></button>
+<button class="control-panel-button bubbles" id="controlBubbles" onclick="toggleDevice('bubbles')"><span>🫧</span><b>AirJet</b><small>OFF</small></button>
+<button class="control-panel-button jets" id="controlJets" onclick="toggleDevice('jets')"><span>🌊</span><b>HydroJets</b><small>OFF</small></button>
+</section>
+</section>
+<section class="view" id="personalizationView">
+<section class="page-head"><div><span class="kicker">Webinterface</span><h2>Interface aanpassen</h2><p>Kies de dashboardonderdelen en navigatie die je wilt gebruiken.</p></div></section>
+<section class="settings-card">
+<div class="settings-title"><span class="settings-icon">🎛️</span><div><h2>Dashboardknoppen</h2><p>Kies welke knoppen op het dashboard zichtbaar zijn.</p></div></div>
+<div class="dashboard-button-settings">
+<label><input checked="" data-dashboard-setting="power" type="checkbox"/> Aan / uit</label>
+<label><input checked="" data-dashboard-setting="heater" type="checkbox"/> Heater</label>
+<label><input checked="" data-dashboard-setting="filter" type="checkbox"/> Filter</label>
+<label><input checked="" data-dashboard-setting="bubbles" type="checkbox"/> Bubbels</label>
+<label><input checked="" data-dashboard-setting="jets" type="checkbox"/> Jets</label>
+</div>
+<div class="settings-subtitle">Dashboardkaarten</div>
+<div class="dashboard-section-settings">
+<label><input checked="" data-dashboard-section-setting="status" type="checkbox"/> WiFi/MQTT-status</label>
+<label><input checked="" data-dashboard-section-setting="currentTemperature" type="checkbox"/> Huidige temperatuur</label>
+<label><input checked="" data-dashboard-section-setting="targetTemperature" type="checkbox"/> Doeltemperatuur</label>
+<label><input checked="" data-dashboard-section-setting="weather" type="checkbox"/> <span data-i18n="Weer">Weer</span></label>
+<label><input checked="" data-dashboard-section-setting="controls" type="checkbox"/> Bedieningsknoppen</label>
+<label><input checked="" data-dashboard-section-setting="summary" type="checkbox"/> Tijd en energie</label>
+<label><input checked="" data-dashboard-section-setting="insight" type="checkbox"/> Slimme status</label>
+<label><input checked="" data-dashboard-section-setting="system" type="checkbox"/> IP en uptime</label>
+</div>
+<div class="interface-actions">
+<button class="secondary-action" onclick="setAllDashboardVisibility(true)">Alles aan</button>
+<button class="secondary-action" onclick="setAllDashboardVisibility(false)">Alles uit</button>
+<button class="secondary-action" onclick="resetDashboardVisibility()">Standaard herstellen</button>
+</div>
+<button class="primary-action" onclick="saveDashboardLayout()" style="width:100%;margin-top:12px;">Dashboardindeling opslaan</button>
+</section>
+<section class="settings-card dashboard-order-card">
+<div class="settings-title"><span class="settings-icon">↕️</span><div><h2>Volgorde dashboardkaarten</h2><p>Sleep de kaarten met het handvat naar de gewenste positie.</p></div></div>
+<div class="dashboard-order-list" id="dashboardOrderList">
+<div class="dashboard-order-item" data-dashboard-order="status"><span class="drag-handle">☰</span><span>WiFi/MQTT-status</span></div>
+<div class="dashboard-order-item" data-dashboard-order="currentTemperature"><span class="drag-handle">☰</span><span>Huidige temperatuur</span></div>
+<div class="dashboard-order-item" data-dashboard-order="targetTemperature"><span class="drag-handle">☰</span><span>Doeltemperatuur</span></div>
+<div class="dashboard-order-item" data-dashboard-order="weather"><span class="drag-handle">☰</span><span data-i18n="Weer">Weer</span></div>
+<div class="dashboard-order-item" data-dashboard-order="controls"><span class="drag-handle">☰</span><span>Bedieningsknoppen</span></div>
+<div class="dashboard-order-item" data-dashboard-order="summary"><span class="drag-handle">☰</span><span>Tijd en energie</span></div>
+<div class="dashboard-order-item" data-dashboard-order="insight"><span class="drag-handle">☰</span><span>Slimme status</span></div>
+<div class="dashboard-order-item" data-dashboard-order="system"><span class="drag-handle">☰</span><span>IP en uptime</span></div>
+</div>
+<div class="interface-actions dashboard-order-actions">
+<button class="secondary-action" onclick="resetDashboardOrder()">Standaardvolgorde</button>
+<button class="primary-action" onclick="saveDashboardOrder()">Volgorde opslaan</button>
+</div>
+</section>
+<section class="settings-card dashboard-button-order-card">
+<div class="settings-title"><span class="settings-icon">↕️</span><div><h2>Volgorde dashboardknoppen</h2><p>Sleep de knoppen met het handvat naar de gewenste positie.</p></div></div>
+<div class="dashboard-order-list" id="dashboardButtonOrderList">
+<div class="dashboard-order-item" data-dashboard-button-order-item="heater"><span class="drag-handle">☰</span><span>Heater</span></div>
+<div class="dashboard-order-item" data-dashboard-button-order-item="filter"><span class="drag-handle">☰</span><span>Filter</span></div>
+<div class="dashboard-order-item" data-dashboard-button-order-item="bubbles"><span class="drag-handle">☰</span><span>Bubbels</span></div>
+<div class="dashboard-order-item" data-dashboard-button-order-item="jets"><span class="drag-handle">☰</span><span>Jets</span></div>
+<div class="dashboard-order-item" data-dashboard-button-order-item="power"><span class="drag-handle">☰</span><span>Aan / uit</span></div>
+</div>
+<div class="interface-actions dashboard-order-actions">
+<button class="secondary-action" onclick="resetDashboardButtonOrder()">Standaardvolgorde</button>
+<button class="primary-action" onclick="saveDashboardButtonOrder()">Volgorde opslaan</button>
+</div>
+</section>
+<section class="settings-card">
+<div class="settings-title"><span class="settings-icon">📱</span><div><h2>Onderste navigatiebalk</h2><p>Verberg de balk volledig of kies welke tabbladen erin staan. Alle pagina's blijven via ☰ bereikbaar.</p></div></div>
+<div class="dashboard-section-settings single-option"><label><input checked="" id="bottomNavEnabled" type="checkbox"/> Onderste balk tonen</label></div>
+<div class="dashboard-button-settings nav-visibility-settings">
+<label><input checked="" data-nav-setting="dashboard" type="checkbox"/> Dashboard</label>
+<label><input checked="" data-nav-setting="control" type="checkbox"/> Bediening</label>
+<label><input checked="" data-nav-setting="planner" type="checkbox"/> Planner</label>
+<label><input checked="" data-nav-setting="history" type="checkbox"/> Historie</label>
+<label><input checked="" data-nav-setting="energy" type="checkbox"/> Energie</label>
+<label><input checked="" data-nav-setting="logs" type="checkbox"/> Diagnostiek</label>
+<label><input checked="" data-nav-setting="settings" type="checkbox"/> Instellingen</label>
+</div>
+<button class="primary-action" onclick="saveNavigationSettings()" style="width:100%;margin-top:12px;">Navigatie opslaan</button>
+</section>
+<section class="settings-card">
+<div class="settings-title"><span class="settings-icon">🎨</span><div><h2 data-i18n="appearance">Weergave</h2><p data-i18n="appearanceHelp">Kies accentkleur, animaties en kaartweergave.</p></div></div>
+<label class="setting-field"><span data-i18n="accentColor">Accentkleur</span><select id="accentTheme" onchange="saveAppearanceSettings()"><option value="blue">Blauw</option><option value="green">Groen</option><option value="orange">Oranje</option><option value="red">Rood</option><option value="purple">Paars</option></select></label>
+<label class="toggle-setting"><input checked="" id="motionEnabled" onchange="saveAppearanceSettings()" type="checkbox"/><span data-i18n="animations">Vloeiende animaties</span></label>
+<label class="toggle-setting"><input id="compactCards" onchange="saveAppearanceSettings()" type="checkbox"/><span data-i18n="compactCards">Compacte kaarten</span></label>
+</section>
+<section class="settings-card">
+<div class="settings-title"><span class="settings-icon">🧩</span><div><h2 data-i18n="widgets">Dashboardwidgets</h2><p data-i18n="widgetsHelp">Toon of verberg slimme statusinformatie.</p></div></div>
+<label class="toggle-setting"><input checked="" id="smartInsightEnabled" onchange="saveWidgetSettings()" type="checkbox"/><span data-i18n="smartStatus">Slimme status</span></label>
+</section>
+</section><section class="view" id="settingsView">
+<section class="settings-card international-card">
+<div class="settings-title"><span class="settings-icon">🌍</span><div><h2 data-i18n="language">Taal</h2><p data-i18n="languageHelp">Kies de taal van de webinterface.</p></div></div>
+<label class="setting-field"><span data-i18n="languageMode">Taalinstelling</span><select id="languageMode" onchange="languageModeChanged()"><option data-i18n="followBrowser" value="browser">Volg browsertaal</option><option data-i18n="manualChoice" value="manual">Handmatig kiezen</option></select></label>
+<label class="setting-field" id="manualLanguageField"><span data-i18n="language">Taal</span><select id="languageSelect" onchange="selectLanguage(this.value)"><option value="nl">Nederlands</option><option value="en">English</option><option value="de">Deutsch</option><option value="fr">Français</option></select></label>
+</section>
+<section class="settings-card">
+<div class="settings-title"><span class="settings-icon">ℹ️</span><div><h2 data-i18n="Informatie">Informatie</h2><p data-i18n="Versies en systeeminformatie van de spa-controller.">Versies en systeeminformatie van de spa-controller.</p></div></div>
+<button class="primary-action" onclick="showView('info')" style="width:100%" data-i18n="Informatie openen">Informatie openen</button>
+</section>
+<section class="settings-card">
+<div class="settings-title">
+<span class="settings-icon">📶</span>
+<div>
+<h2>WiFi</h2>
+<p>Netwerkverbinding beheren</p>
+</div>
+</div>
+<div class="settings-row">
+<span>Status</span>
+<b class="dot red" id="settingsWifiStatus">Offline</b>
+</div>
+<div class="settings-row">
+<span>Netwerk</span>
+<b id="settingsSsid">--</b>
+</div>
+<div class="settings-row">
+<span>IP-adres</span>
+<b id="settingsIp">--</b>
+</div>
+<div class="settings-row">
+<span>Signaal</span>
+<b id="settingsRssi">--</b>
+</div>
+<div class="settings-row">
+<span>Hostname</span>
+<b id="settingsHostname">--</b>
+</div>
+<div class="settings-row">
+<span>MAC-adres</span>
+<b id="settingsMac">--</b>
+</div>
+<div class="settings-row">
+<span>AP actief</span>
+<b id="settingsApActive">--</b>
+</div>
+<div class="settings-row">
+<span>AP SSID</span>
+<b id="settingsApSsid">--</b>
+</div>
+<div class="settings-row">
+<span>AP IP</span>
+<b id="settingsApIp">--</b>
+</div>
+<button class="primary-action" onclick="openWifiModal()">
+  Netwerken zoeken
+</button>
+<button class="secondary-action" onclick="forgetWifi()" style="margin-top:12px;width:100%;">
+    WiFi vergeten
+</button>
+</section>
+<section class="settings-card">
+<div class="settings-title">
+<span class="settings-icon">☁️</span>
+<div>
+<h2>MQTT</h2>
+<p>Brokerinstellingen</p>
+</div>
+</div>
+<label><input id="mqttEnabled" type="checkbox"/> MQTT ingeschakeld</label><br/><br/>
+<label>Broker</label><input id="mqttHost" style="width:100%;" type="text"/>
+<label>Poort</label><input id="mqttPort" style="width:100%;" type="number" value="1883"/>
+<label>Gebruikersnaam</label><input id="mqttUser" style="width:100%;" type="text"/>
+<label>Wachtwoord</label><input id="mqttPassword" style="width:100%;" type="password"/>
+<label>Client-ID</label><input id="mqttClientId" style="width:100%;" type="text" value="LayZSpaController"/>
+<label>Base Topic</label><input id="mqttBaseTopic" style="width:100%;" type="text" value="layzspa"/>
+<label><input checked="" id="mqttDiscovery" type="checkbox"/> Home Assistant Discovery</label>
+<button class="primary-action" onclick="saveMqttSettings()" style="margin-top:12px;width:100%;">Opslaan</button>
+</section>
+<section class="settings-card">
+<div class="settings-title">
+<span class="settings-icon">🌍</span>
+<div>
+<h2>Regio &amp; Tijd</h2>
+<p>Internationale instellingen</p>
+</div>
+</div>
+<label>Tijdzone</label>
+<input id="timeZone" style="width:100%;" type="text" value="Europe/Amsterdam"/>
+<label>Datumformaat</label>
+<select id="dateFormat" style="width:100%;">
+<option>DD-MM-YYYY</option>
+<option>MM/DD/YYYY</option>
+<option>YYYY-MM-DD</option>
+</select>
+<label><input checked="" id="clock24" type="checkbox"/> 24-uursnotatie</label>
+<div class="weather-settings-block">
+  <div class="settings-subtitle" data-i18n="Weer">Weer</div>
+  <label data-i18n="Plaats">Plaats</label>
+  <input id="weatherCity" style="width:100%;" type="text" placeholder="Putten"/>
+  <label data-i18n="Land">Land</label>
+  <input id="weatherCountry" maxlength="2" style="width:100%;text-transform:uppercase;" type="text" placeholder="NL"/>
+  <label data-i18n="Update-interval">Update-interval</label>
+  <select id="weatherInterval" style="width:100%;"><option data-i18n="15 minuten" value="15">15 minuten</option><option data-i18n="30 minuten" value="30">30 minuten</option><option data-i18n="60 minuten" value="60">60 minuten</option></select>
+  <label><input checked="" id="weatherEnabled" type="checkbox"/> <span data-i18n="Weerkaart inschakelen">Weerkaart inschakelen</span></label>
+  <div class="weather-location-actions"><button class="secondary-action" onclick="searchWeatherLocation()" type="button" data-i18n="Zoek locatie">Zoek locatie</button><span id="weatherLocationResult">--</span></div>
+</div>
+<br/>
+<button class="primary-action" onclick="saveRegionalSettings()" style="margin-top:12px;width:100%;">
+Opslaan
+</button>
+</section>
+<section class="settings-card"><div class="settings-title"><span class="settings-icon">🎨</span><div><h2>Webinterface</h2><p>Dashboard en navigatie aanpassen</p></div></div><button class="primary-action" onclick="showView('personalization')" style="width:100%;">Interface aanpassen</button></section><section class="settings-card"><div class="settings-title"><span class="settings-icon">🧩</span><div><h2>Hardware</h2><p>CIO, display, printplaat en GPIO instellen</p></div></div><button class="primary-action" onclick="showView('hardware')" style="width:100%;">Hardware configureren</button></section>
+<section class="settings-card backup-card"><div class="settings-title"><span class="settings-icon">💾</span><div><h2>Back-up &amp; herstel</h2><p>Instellingen, planner en energieconfiguratie</p></div></div><div class="toolbar"><button class="primary-action" onclick="exportBackup()">Back-up downloaden</button><label class="secondary-action file-button">Back-up herstellen<input accept="application/json,.json" id="backupFile" onchange="importBackup(event)" type="file"/></label></div></section>
+<section class="settings-card">
+<div class="settings-title">
+<span class="settings-icon">🔄</span>
+<div>
+<h2>OTA-updates</h2>
+<p>Firmware en webinterface draadloos bijwerken</p>
+</div>
+</div>
+<div class="settings-row"><span data-i18n="Firmware">Firmware</span><b>firmware.bin</b></div>
+<div class="localized-file-input" style="margin-top:12px;">
+<input accept=".bin" id="otaFile" type="file"/>
+<label class="file-select-button secondary-action" for="otaFile">Bestand kiezen</label>
+<span class="file-selected-name">Geen bestand gekozen</span>
+</div>
+<progress id="otaProgress" max="100" style="width:100%;margin-top:12px;" value="0"></progress>
+<div class="settings-row"><span>Voortgang firmware</span><b id="otaPercent">0%</b></div>
+<button class="primary-action" onclick="startOtaUpload()" style="margin-top:12px;width:100%;">Firmware uploaden</button>
+<hr style="border:0;border-top:1px solid var(--line);margin:20px 0;"/>
+<div class="settings-row"><span>Webinterface / LittleFS</span><b>littlefs.bin</b></div>
+<p data-i18n="otaLittleFsHelp" style="margin-top:8px;">Upload het bestand uit .pio/build/nodemcuv2/littlefs.bin. De ESP start daarna automatisch opnieuw.</p>
+<div class="localized-file-input" style="margin-top:12px;">
+<input accept=".bin" id="fsOtaFile" type="file"/>
+<label class="file-select-button secondary-action" for="fsOtaFile">Bestand kiezen</label>
+<span class="file-selected-name">Geen bestand gekozen</span>
+</div>
+<progress id="fsOtaProgress" max="100" style="width:100%;margin-top:12px;" value="0"></progress>
+<div class="settings-row"><span>Voortgang LittleFS</span><b id="fsOtaPercent">0%</b></div>
+<button class="primary-action" onclick="startFilesystemUpload()" style="margin-top:12px;width:100%;">LittleFS uploaden</button>
+</section>
+
+</section>
+<section class="view" id="hardwareView">
+<section class="page-head"><div><span class="kicker">Bestway Lay-Z-Spa</span><h2>Hardware</h2><p>CIO, display, printplaat en GPIO-instellingen</p></div></section>
+<section class="settings-card">
+<div class="settings-title"><span class="settings-icon">🧩</span><div><h2>Controllerprofielen</h2><p>Overgenomen uit de originele Bestway-interface</p></div></div>
+<label>CIO / pompmodel</label><select id="hwCio" onchange="applyHardwarePins()"></select>
+<label>DSP / displaymodel</label><select id="hwDsp" onchange="applyHardwarePins()"></select>
+<label>Printplaat</label><select id="hwPcb" onchange="applyHardwarePins()"><option value="v1">V1</option><option value="v2">V2</option><option value="v2b">V2B</option><option value="custom">Custom</option></select>
+</section>
+<section class="settings-card">
+<div class="settings-title"><span class="settings-icon">🔌</span><div><h2>GPIO / IO</h2><p>Gebruik alleen geldige ESP8266-GPIO-nummers</p></div></div>
+<div class="hardware-grid">
+<label>CIO data / TD / RX<input id="hwPin1" max="16" min="0" type="number"/></label>
+<label>CIO clock / TX<input id="hwPin2" max="16" min="0" type="number"/></label>
+<label>CIO CS / LD<input id="hwPin3" max="16" min="0" type="number"/></label>
+<label>DSP data / TD / TX<input id="hwPin4" max="16" min="0" type="number"/></label>
+<label>DSP clock / RX<input id="hwPin5" max="16" min="0" type="number"/></label>
+<label>DSP CS / LD<input id="hwPin6" max="16" min="0" type="number"/></label>
+<label>DSP audio<input id="hwPin7" max="16" min="0" type="number"/></label>
+<label>Temperatuursensor<input id="hwPin8" max="16" min="0" type="number"/></label>
+</div>
+<label class="toggle-line"><input id="hwTempSensor" type="checkbox"/> Externe OneWire-temperatuursensor gebruiken</label>
+</section>
+</section>
+
+<section class="view" id="plannerView"><section class="settings-card"><div class="settings-title"><span class="settings-icon">📅</span><div><h2>Planner</h2><p>Weekprogramma</p></div></div><div class="planner-actions"><button class="primary-action" onclick="openScheduleModal()">+ Schema toevoegen</button><button class="secondary-action" onclick="deleteSelectedSchedules()">Aangevinkte verwijderen</button></div><div id="plannerGrid"><div class="settings-card"><h3>Maandag</h3><div class="schedule-list" id="day-maandag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Dinsdag</h3><div class="schedule-list" id="day-dinsdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Woensdag</h3><div class="schedule-list" id="day-woensdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Donderdag</h3><div class="schedule-list" id="day-donderdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Vrijdag</h3><div class="schedule-list" id="day-vrijdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Zaterdag</h3><div class="schedule-list" id="day-zaterdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Zondag</h3><div class="schedule-list" id="day-zondag"><em>Nog geen schema's</em></div></div></div></section></section>
+<section class="view" id="historyView">
+<section class="page-head">
+<div><span class="kicker">Smart Core</span><h2>Historie</h2><p>Temperatuur en spa-activiteit</p></div>
+<div class="toolbar"><select id="historyLimit" onchange="loadHistory()"><option value="48">4 uur</option><option value="144">12 uur</option><option selected="" value="288">24 uur</option></select><button class="secondary-action compact" onclick="clearHistory()">Wissen</button></div>
+</section>
+<section class="chart-card">
+<div class="chart-legend"><span><i class="legend-water"></i>Water</span><span><i class="legend-target"></i>Doel</span></div>
+<canvas height="260" id="temperatureChart"></canvas>
+<div class="empty-state hidden" id="historyEmpty">Nog geen historische metingen.</div>
+</section>
+<section class="metric-grid" id="historyMetrics">
+<article><span>Minimum</span><strong id="historyMin">--</strong></article>
+<article><span>Gemiddeld</span><strong id="historyAvg">--</strong></article>
+<article><span>Maximum</span><strong id="historyMax">--</strong></article>
+<article><span>Metingen</span><strong id="historyCount">0</strong></article>
+</section>
+<section class="activity-card"><h3>Activiteit</h3><div class="activity-timeline" id="activityTimeline"></div></section>
+</section>
+<section class="view" id="energyView">
+<section class="page-head"><div><span class="kicker">Smart Core</span><h2>Energie</h2><p>Geschat verbruik en draaiuren</p></div><button class="secondary-action compact" onclick="resetEnergy()">Tellers resetten</button></section>
+<section class="energy-hero"><span>Totaal geschat</span><strong id="energyTotalKwh">-- kWh</strong><small id="energyTotalCost">--</small></section>
+<section class="metric-grid energy-metrics">
+<article><span>🔥 Heater</span><strong id="energyHeaterHours">-- u</strong></article>
+<article><span>💧 Filter</span><strong id="energyFilterHours">-- u</strong></article>
+<article><span>🫧 Bubbels</span><strong id="energyBubblesHours">-- u</strong></article>
+<article><span>🌊 Jets</span><strong id="energyJetsHours">-- u</strong></article>
+</section>
+<section class="settings-card">
+<div class="settings-title"><span class="settings-icon">⚡</span><div><h2>Berekening</h2><p>Pas vermogens en energieprijs aan</p></div></div>
+<div class="form-grid">
+<label>Heater (W)<input id="energyHeaterWatts" min="0" type="number"/></label>
+<label>Filter (W)<input id="energyFilterWatts" min="0" type="number"/></label>
+<label>Bubbels (W)<input id="energyBubblesWatts" min="0" type="number"/></label>
+<label>Jets (W)<input id="energyJetsWatts" min="0" type="number"/></label>
+<label>Prijs per kWh<input id="energyPrice" min="0" step="0.01" type="number"/></label>
+<label>Valuta<input id="energyCurrency" maxlength="5" type="text"/></label>
+</div>
+<button class="primary-action" onclick="saveEnergySettings()">Energie-instellingen opslaan</button>
+</section>
+</section>
+<section class="view" id="logsView">
+<section class="page-head"><div><span class="kicker">Kwaliteit &amp; Testbaarheid</span><h2>Diagnostiek</h2><p>Systeemcontrole en rapportage</p></div><div class="toolbar"><button class="primary-action compact" onclick="runSelfTest()">Zelftest</button><button class="secondary-action compact" onclick="downloadDiagnosticReport()">Rapport</button></div></section>
+<section class="diagnostic-grid">
+<article><span>WiFi</span><strong id="diagWifi">--</strong><small id="diagRssi">--</small></article>
+<article><span>MQTT</span><strong id="diagMqtt">--</strong><small>Brokerverbinding</small></article>
+<article><span>Tijd</span><strong id="diagTime">--</strong><small>NTP-synchronisatie</small></article>
+<article><span>Spa</span><strong id="diagSpa">--</strong><small id="diagSpaData">--</small></article>
+<article><span data-i18n="Vrij geheugen">Vrij geheugen</span><strong id="diagHeap">--</strong><small id="diagFragmentation">--</small></article>
+<article><span>LittleFS</span><strong id="diagFs">--</strong><small id="diagFsUsage">--</small></article>
+</section>
+<section class="page-head compact-head"><div><span class="kicker">Diagnostiek</span><h2>Logboek</h2><p>Gebeurtenissen en waarschuwingen</p></div><div class="toolbar"><select id="logFilter" onchange="renderLogs()"><option value="ALL">Alles</option><option value="INFO">Info</option><option value="WARN">Waarschuwingen</option><option value="ERROR">Fouten</option></select><button class="secondary-action compact" onclick="clearLogs()">Wissen</button></div></section>
+<section class="log-card"><div class="log-list" id="logList"><div class="empty-state">Logboek laden...</div></div></section>
+</section>
+
+<section class="view" id="infoView">
+<section class="page-head"><div><h2 data-i18n="Informatie">Informatie</h2><p data-i18n="Versies en systeeminformatie van de controller.">Versies en systeeminformatie van de controller.</p></div></section>
+<section class="info-identity-card">
+<img alt="PtW" src="/icons/ptw-logo.png"/>
+<div><span class="kicker">Bestway Lay-Z-Spa</span><h2 data-i18n="Premium Spa Control">Premium Spa Control</h2></div>
+</section>
+<section class="info-grid">
+<article><span data-i18n="Firmware">Firmware</span><strong>v3.0.0</strong><small data-i18n="Stabiele release">Stabiele release</small></article>
+<article><span data-i18n="Webinterface">Webinterface</span><strong>v3.0.0</strong><small>LittleFS</small></article>
+</section>
+<section class="settings-card">
+<div class="settings-title">
+<span class="settings-icon">ℹ️</span>
+<div>
+<h2 data-i18n="Systeem">Systeem</h2>
+<p data-i18n="Actuele ESP-informatie">Actuele ESP-informatie</p>
+</div>
+</div>
+<div class="settings-row">
+<span data-i18n="Uptime">Uptime</span>
+<b id="settingsUptime">--</b>
+</div>
+<div class="settings-row">
+<span data-i18n="Vrij geheugen">Vrij geheugen</span>
+<b id="settingsHeap">--</b>
+</div>
+<div class="settings-row">
+<span data-i18n="Firmware">Firmware</span>
+<b id="settingsFirmware">--</b>
+</div>
+<div class="settings-row">
+<span data-i18n="CPU">CPU</span>
+<b id="settingsCpu">--</b>
+</div>
+<div class="settings-row">
+<span data-i18n="Flash">Flash</span>
+<b id="settingsFlash">--</b>
+</div>
+<div class="settings-row">
+<span>LittleFS</span>
+<b id="settingsFs">--</b>
+</div>
+<div class="settings-row">
+<span data-i18n="Resetreden">Resetreden</span>
+<b id="settingsResetReason">--</b>
+</div>
+<button class="secondary-action" onclick="restartEsp()" style="margin-top:16px;width:100%;">
+          <span data-i18n="ESP opnieuw opstarten">ESP opnieuw opstarten</span>
+        </button>
+</section>
+</section>
+<div class="app-menu-backdrop" id="appMenuBackdrop" onclick="closeAppMenu()"></div>
+<aside aria-hidden="true" class="app-menu" id="appMenu">
+<div class="app-menu-head"><div><span class="kicker">Navigatie</span><h2>Menu</h2></div><button class="close-button" onclick="closeAppMenu()">×</button></div>
+<div class="app-menu-grid">
+<button onclick="openMenuView('dashboard')">🏠 <span>Dashboard</span></button>
+<button onclick="openMenuView('control')">🎛️ <span>Bediening</span></button>
+<button onclick="openMenuView('planner')">📅 <span>Planner</span></button>
+<button onclick="openMenuView('history')">📈 <span>Historie</span></button>
+<button onclick="openMenuView('energy')">⚡ <span>Energie</span></button>
+<button onclick="openMenuView('logs')">📜 <span>Diagnostiek</span></button>
+<button onclick="openMenuView('hardware')">🔌 <span>Hardware</span></button>
+<button onclick="openMenuView('personalization')">🎨 <span>Interface aanpassen</span></button><button onclick="openMenuView('info')">ℹ️ <span>Info</span></button><button onclick="openMenuView('settings')">⚙️ <span>Instellingen</span></button>
+</div></aside>
+<nav class="bottom-nav" id="bottomNav"><button class="selected" id="navDashboard" onclick="showView('dashboard')"><span>🏠</span><small>Dashboard</small></button><button id="navControl" onclick="showView('control')"><span>🎛️</span><small>Bediening</small></button><button id="navPlanner" onclick="showView('planner')"><span>📅</span><small>Planner</small></button><button id="navHistory" onclick="showView('history')"><span>📈</span><small>Historie</small></button><button id="navEnergy" onclick="showView('energy')"><span>⚡</span><small>Energie</small></button><button id="navLogs" onclick="showView('logs')"><span>📜</span><small>Diagnostiek</small></button><button id="navSettings" onclick="showView('settings')"><span>⚙️</span><small>Instellingen</small></button></nav>
+</main>
+<div aria-hidden="true" class="modal-backdrop" id="wifiModal">
+<div class="modal">
+<div class="modal-header">
+<div>
+<span class="kicker">WiFi configuratie</span>
+<h2>Beschikbare netwerken</h2>
+</div>
+<button aria-label="Sluiten" class="close-button" onclick="closeWifiModal()">×</button>
+</div>
+<div class="scan-state" id="wifiScanState">Scannen...</div>
+<div class="network-list" id="wifiNetworks"></div>
+<form class="wifi-form hidden" id="wifiForm" onsubmit="connectSelectedWifi(event)">
+<label>
+          Netwerk
+          <input id="selectedSsid" name="ssid" readonly=""/>
+</label>
+<label>
+          Wachtwoord
+          <input autocomplete="current-password" id="wifiPassword" maxlength="64" name="password" placeholder="WiFi-wachtwoord" type="password"/>
+</label>
+<label>
+          IP-instelling
+          <select id="wifiIpMode" onchange="toggleWifiStaticFields()">
+<option value="dhcp">Dynamisch (DHCP)</option>
+<option value="static">Vast IP-adres</option>
+</select>
+</label>
+<div class="wifi-static-fields hidden" id="wifiStaticFields">
+<label>IP-adres<input id="wifiStaticIp" inputmode="decimal" placeholder="192.168.1.50"/></label>
+<label>Gateway<input id="wifiGateway" inputmode="decimal" placeholder="192.168.1.1"/></label>
+<label>Subnetmasker<input id="wifiSubnet" inputmode="decimal" value="255.255.255.0"/></label>
+<label>Primaire DNS<input id="wifiDns1" inputmode="decimal" placeholder="192.168.1.1"/></label>
+<label>Secundaire DNS<input id="wifiDns2" inputmode="decimal" placeholder="1.1.1.1 (optioneel)"/></label>
+</div>
+<div class="modal-actions">
+<button class="secondary-action" onclick="backToNetworks()" type="button">Terug</button>
+<button class="primary-action" id="wifiConnectButton" type="submit">Verbinden</button>
+</div>
+</form>
+</div>
+</div>
+<div aria-hidden="true" class="modal-backdrop" id="scheduleModal">
+<div class="modal">
+<div class="modal-header">
+<div><span class="kicker">Planner</span><h2>Schema</h2></div>
+<button class="close-button" onclick="closeScheduleModal()">×</button>
+</div>
+<label>Tijd <input id="schTime" type="time" value="08:00"/></label>
+<label>Actie
+    <select id="schAction">
+<option value="0">Heater aan</option>
+<option value="1">Heater uit</option>
+<option value="2">Filter aan</option>
+<option value="3">Filter uit</option>
+<option value="4">Bubbels aan</option>
+<option value="5">Bubbels uit</option>
+<option value="6">Jets aan</option>
+<option value="7">Jets uit</option>
+<option value="8">Doeltemperatuur</option>
+</select>
+</label>
+<label>Temperatuur <input id="schTemp" max="40" min="20" type="number" value="38"/></label>
+<label>Dagen</label>
+<div id="schDays">
+<label><input type="checkbox" value="1"/>Zo</label>
+<label><input type="checkbox" value="2"/>Ma</label>
+<label><input type="checkbox" value="4"/>Di</label>
+<label><input type="checkbox" value="8"/>Wo</label>
+<label><input type="checkbox" value="16"/>Do</label>
+<label><input type="checkbox" value="32"/>Vr</label>
+<label><input type="checkbox" value="64"/>Za</label>
+</div>
+<div class="modal-actions">
+<button class="secondary-action" onclick="closeScheduleModal()">Annuleren</button>
+<button class="primary-action" onclick="saveSchedule()">Opslaan</button>
+</div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/js/app.js?v=3000"></script>
+</body>
+</html>

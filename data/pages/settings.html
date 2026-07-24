@@ -1,0 +1,43 @@
+<div class="info-card">
+  <h3>Instellingen</h3>
+  <p>Algemene apparaatinstellingen.</p>
+</div>
+
+<div class="settings-card">
+  <h3>MQTT</h3>
+
+  <label><input type="checkbox" id="mqttEnabled"> MQTT ingeschakeld</label>
+
+  <label>Broker</label>
+  <input id="mqttHost" type="text" placeholder="192.168.1.10">
+
+  <label>Poort</label>
+  <input id="mqttPort" type="number" value="1883">
+
+  <label>Gebruikersnaam</label>
+  <input id="mqttUser" type="text">
+
+  <label>Wachtwoord</label>
+  <input id="mqttPassword" type="password">
+
+  <label>Client-ID</label>
+  <input id="mqttClientId" type="text" value="LayZSpaController">
+
+  <label>Base Topic</label>
+  <input id="mqttBaseTopic" type="text" value="layzspa">
+
+  <label>
+    <input type="checkbox" id="mqttDiscovery" checked>
+    Home Assistant Discovery
+  </label>
+
+  <div style="margin-top:16px;display:flex;gap:10px;">
+    <button class="primary-action" onclick="saveMqttSettings()">
+      Opslaan
+    </button>
+
+    <button class="secondary-action" onclick="testMqttConnection()">
+      Test verbinding
+    </button>
+  </div>
+</div>

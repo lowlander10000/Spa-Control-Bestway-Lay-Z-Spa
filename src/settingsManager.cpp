@@ -1,0 +1,305 @@
+#include "settingsManager.h"
+
+#include <LittleFS.h>
+
+namespace {
+  String escapeJson(const String& value) {
+    String escaped;
+    escaped.reserve(value.length() + 8);
+
+    for (size_t i = 0; i < value.length(); i++) {
+      const char character = value[i];
+
+      switch (character) {
+        case '\\': escaped += "\\\\"; break;
+        case '"': escaped += "\\\""; break;
+        case '\n': escaped += "\\n"; break;
+        case '\r': escaped += "\\r"; break;
+        case '\t': escaped += "\\t"; break;
+        default: escaped += character; break;
+      }
+    }
+
+    return escaped;
+  }
+
+  int findJsonValueStart(const String& json, const String& key) {
+    const String pattern = "\"" + key + "\"";
+    const int keyPosition = json.indexOf(pattern);
+    if (keyPosition < 0) return -1;
+
+    const int colonPosition = json.indexOf(':', keyPosition + pattern.length());
+    if (colonPosition < 0) return -1;
+
+    int valuePosition = colonPosition + 1;
+    while (
+      valuePosition < static_cast<int>(json.length()) &&
+      isspace(json[valuePosition])
+    ) {
+      valuePosition++;
+    }
+
+    return valuePosition;
+  }
+
+  String readJsonString(
+    const String& json,
+    const String& key,
+    const String& fallback
+  ) {
+    int position = findJsonValueStart(json, key);
+    if (
+      position < 0 ||
+      position >= static_cast<int>(json.length()) ||
+      json[position] != '"'
+    ) {
+      return fallback;
+    }
+
+    position++;
+    String value;
+    bool escaped = false;
+
+    for (int i = position; i < static_cast<int>(json.length()); i++) {
+      const char character = json[i];
+
+      if (escaped) {
+        switch (character) {
+          case 'n': value += '\n'; break;
+          case 'r': value += '\r'; break;
+          case 't': value += '\t'; break;
+          default: value += character; break;
+        }
+        escaped = false;
+        continue;
+      }
+
+      if (character == '\\') {
+        escaped = true;
+        continue;
+      }
+
+      if (character == '"') return value;
+      value += character;
+    }
+
+    return fallback;
+  }
+
+  bool readJsonBool(
+    const String& json,
+    const String& key,
+    bool fallback
+  ) {
+    const int position = findJsonValueStart(json, key);
+    if (position < 0) return fallback;
+    if (json.startsWith("true", position)) return true;
+    if (json.startsWith("false", position)) return false;
+    return fallback;
+  }
+
+  uint16_t readJsonUInt16(
+    const String& json,
+    const String& key,
+    uint16_t fallback
+  ) {
+    const int position = findJsonValueStart(json, key);
+    if (position < 0) return fallback;
+
+    String number;
+    for (int i = position; i < static_cast<int>(json.length()); i++) {
+      const char character = json[i];
+      if (!isdigit(character)) break;
+      number += character;
+    }
+
+    if (number.isEmpty()) return fallback;
+
+    const unsigned long parsed = number.toInt();
+    if (parsed == 0 || parsed > 65535) return fallback;
+    return static_cast<uint16_t>(parsed);
+  }
+  float readJsonFloat(const String& json, const String& key, float fallback) {
+    const int position = findJsonValueStart(json, key);
+    if (position < 0) return fallback;
+    String number;
+    for (int i=position;i<(int)json.length();i++) {
+      char c=json[i];
+      if (!(isdigit(c)||c=='.'||c=='-')) break;
+      number += c;
+    }
+    return number.isEmpty() ? fallback : number.toFloat();
+  }
+
+}
+
+SettingsManager settingsManager;
+
+bool SettingsManager::begin() {
+  setDefaults();
+
+  if (!LittleFS.exists(SETTINGS_FILE)) {
+    Serial.println("Instellingenbestand ontbreekt, standaardwaarden actief");
+    return save();
+  }
+
+  return load();
+}
+
+const MqttSettings& SettingsManager::mqtt() const { return mqttSettings_; }
+MqttSettings& SettingsManager::mqtt() { return mqttSettings_; }
+const RegionalSettings& SettingsManager::regional() const { return regionalSettings_; }
+RegionalSettings& SettingsManager::regional() { return regionalSettings_; }
+const EnergySettings& SettingsManager::energy() const { return energySettings_; }
+EnergySettings& SettingsManager::energy() { return energySettings_; }
+
+bool SettingsManager::load() {
+  File file = LittleFS.open(SETTINGS_FILE, "r");
+  if (!file) {
+    Serial.println("Instellingenbestand openen mislukt");
+    setDefaults();
+    return false;
+  }
+
+  const String json = file.readString();
+  file.close();
+
+  if (json.isEmpty()) {
+    Serial.println("Instellingenbestand is leeg");
+    setDefaults();
+    return false;
+  }
+
+  mqttSettings_.enabled = readJsonBool(json, "enabled", mqttSettings_.enabled);
+  mqttSettings_.host = readJsonString(json, "host", mqttSettings_.host);
+  mqttSettings_.port = readJsonUInt16(json, "port", mqttSettings_.port);
+  mqttSettings_.username = readJsonString(json, "username", mqttSettings_.username);
+  mqttSettings_.password = readJsonString(json, "password", mqttSettings_.password);
+  mqttSettings_.clientId = readJsonString(json, "clientId", mqttSettings_.clientId);
+  mqttSettings_.baseTopic = readJsonString(json, "baseTopic", mqttSettings_.baseTopic);
+  mqttSettings_.homeAssistantDiscovery = readJsonBool(
+    json,
+    "homeAssistantDiscovery",
+    mqttSettings_.homeAssistantDiscovery
+  );
+
+  regionalSettings_.language = readJsonString(
+    json,
+    "language",
+    regionalSettings_.language
+  );
+  regionalSettings_.timeZone = readJsonString(
+    json,
+    "timeZone",
+    regionalSettings_.timeZone
+  );
+  regionalSettings_.use24HourClock = readJsonBool(
+    json,
+    "use24HourClock",
+    regionalSettings_.use24HourClock
+  );
+  regionalSettings_.dateFormat = readJsonString(
+    json,
+    "dateFormat",
+    regionalSettings_.dateFormat
+  );
+  regionalSettings_.temperatureUnit = temperatureUnitFromString(
+    readJsonString(
+      json,
+      "temperatureUnit",
+      temperatureUnitToString(regionalSettings_.temperatureUnit)
+    ),
+    regionalSettings_.temperatureUnit
+  );
+
+  energySettings_.heaterWatts = readJsonUInt16(json, "heaterWatts", energySettings_.heaterWatts);
+  energySettings_.filterWatts = readJsonUInt16(json, "filterWatts", energySettings_.filterWatts);
+  energySettings_.bubblesWatts = readJsonUInt16(json, "bubblesWatts", energySettings_.bubblesWatts);
+  energySettings_.jetsWatts = readJsonUInt16(json, "jetsWatts", energySettings_.jetsWatts);
+  energySettings_.pricePerKwh = readJsonFloat(json, "pricePerKwh", energySettings_.pricePerKwh);
+  energySettings_.currency = readJsonString(json, "currency", energySettings_.currency);
+
+  Serial.println("Instellingen geladen");
+  return true;
+}
+
+bool SettingsManager::save() {
+  File file = LittleFS.open(SETTINGS_FILE, "w");
+  if (!file) {
+    Serial.println("Instellingenbestand schrijven mislukt");
+    return false;
+  }
+
+  String json;
+  json.reserve(640);
+  json = "{\n";
+  json += "  \"enabled\": " + String(mqttSettings_.enabled ? "true" : "false") + ",\n";
+  json += "  \"host\": \"" + escapeJson(mqttSettings_.host) + "\",\n";
+  json += "  \"port\": " + String(mqttSettings_.port) + ",\n";
+  json += "  \"username\": \"" + escapeJson(mqttSettings_.username) + "\",\n";
+  json += "  \"password\": \"" + escapeJson(mqttSettings_.password) + "\",\n";
+  json += "  \"clientId\": \"" + escapeJson(mqttSettings_.clientId) + "\",\n";
+  json += "  \"baseTopic\": \"" + escapeJson(mqttSettings_.baseTopic) + "\",\n";
+  json += "  \"homeAssistantDiscovery\": " + String(
+    mqttSettings_.homeAssistantDiscovery ? "true" : "false"
+  ) + ",\n";
+  json += "  \"language\": \"" + escapeJson(regionalSettings_.language) + "\",\n";
+  json += "  \"timeZone\": \"" + escapeJson(regionalSettings_.timeZone) + "\",\n";
+  json += "  \"use24HourClock\": " + String(
+    regionalSettings_.use24HourClock ? "true" : "false"
+  ) + ",\n";
+  json += "  \"dateFormat\": \"" + escapeJson(regionalSettings_.dateFormat) + "\",\n";
+  json += "  \"temperatureUnit\": \"";
+  json += temperatureUnitToString(regionalSettings_.temperatureUnit);
+  json += "\",\n";
+  json += "  \"heaterWatts\": " + String(energySettings_.heaterWatts) + ",\n";
+  json += "  \"filterWatts\": " + String(energySettings_.filterWatts) + ",\n";
+  json += "  \"bubblesWatts\": " + String(energySettings_.bubblesWatts) + ",\n";
+  json += "  \"jetsWatts\": " + String(energySettings_.jetsWatts) + ",\n";
+  json += "  \"pricePerKwh\": " + String(energySettings_.pricePerKwh, 3) + ",\n";
+  json += "  \"currency\": \"" + escapeJson(energySettings_.currency) + "\"\n}";
+
+  const size_t written = file.print(json);
+  file.close();
+
+  if (written != json.length()) {
+    Serial.println("Instellingenbestand onvolledig geschreven");
+    return false;
+  }
+
+  Serial.println("Instellingen opgeslagen");
+  return true;
+}
+
+bool SettingsManager::reset() {
+  setDefaults();
+  if (LittleFS.exists(SETTINGS_FILE)) LittleFS.remove(SETTINGS_FILE);
+  return save();
+}
+
+const char* SettingsManager::temperatureUnitToString(TemperatureUnit unit) {
+  return unit == TemperatureUnit::Fahrenheit ? "Fahrenheit" : "Celsius";
+}
+
+TemperatureUnit SettingsManager::temperatureUnitFromString(
+  const String& value,
+  TemperatureUnit fallback
+) {
+  String normalized = value;
+  normalized.trim();
+  normalized.toLowerCase();
+
+  if (normalized == "fahrenheit" || normalized == "f") {
+    return TemperatureUnit::Fahrenheit;
+  }
+  if (normalized == "celsius" || normalized == "c") {
+    return TemperatureUnit::Celsius;
+  }
+  return fallback;
+}
+
+void SettingsManager::setDefaults() {
+  mqttSettings_ = MqttSettings{};
+  regionalSettings_ = RegionalSettings{};
+  energySettings_ = EnergySettings{};
+}

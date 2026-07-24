@@ -1,0 +1,16 @@
+{
+  "cio": 0,
+  "dsp": 0,
+  "pcb": "custom",
+  "hasTempSensor": "0",
+  "pins": [1,2,3,4,5,6,7,8],
+  "pwr_levels": {
+    "override": false,
+    "heater_stage1": 1900,
+    "heater_stage2": 0,
+    "pump": 40,
+    "air": 800,
+    "idle": 2,
+    "jet": 400
+  }
+}
