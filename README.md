@@ -1,4 +1,4 @@
-# Spa Control for Bestway Lay z spa
+# Spa Control for Bestway Lay Z Spa
 
 [![Build](https://github.com/lowlander10000/Spa-Control/actions/workflows/build.yml/badge.svg)](https://github.com/lowlander10000/Spa-Control/actions/workflows/build.yml)
 [![Latest release](https://img.shields.io/github/v/release/lowlander10000/Spa-Control?display_name=tag&sort=semver)](https://github.com/lowlander10000/Spa-Control/releases/latest)
