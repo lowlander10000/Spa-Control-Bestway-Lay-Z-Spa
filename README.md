@@ -37,8 +37,7 @@ This repository is a modified derivative of **WiFi-remote-for-Bestway-Lay-Z-SPA*
 - LittleFS
 - A compatible Bestway Lay-Z-Spa interface and level-shifting hardware as described by the upstream project
 
-The project is configured for the `nodemcuv2` PlatformIO environment at 160 MHz. It is **not an ESP32 project**.
-
+The project is configured for the `nodemcuv2` PlatformIO environment at 160 MHz.
 ## Quick start
 
 1. Install [Visual Studio Code](https://code.visualstudio.com/) and the [PlatformIO IDE](https://platformio.org/install/ide?install=vscode).
@@ -96,6 +95,7 @@ docs/       Installation, MQTT, hardware and release documentation
 Spa Control is based on:
 
 - [visualapproach/WiFi-remote-for-Bestway-Lay-Z-SPA](https://github.com/visualapproach/WiFi-remote-for-Bestway-Lay-Z-SPA)
+- Fully compatible with the hardware used so dont like mine? use this great one
 
 Please consult the upstream repository for the original hardware research, wiring information, schematics, PCB designs, manual, discussions and contributor history. Spa Control is not affiliated with or endorsed by Bestway.
 
