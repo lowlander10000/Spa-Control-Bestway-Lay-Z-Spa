@@ -1,0 +1,15 @@
+## Summary
+
+Describe the change and why it is needed.
+
+## Testing
+
+- [ ] Firmware builds for `nodemcuv2`
+- [ ] LittleFS image builds
+- [ ] Dashboard tested on phone
+- [ ] Dashboard tested in a desktop browser
+- [ ] No credentials or secrets are included
+
+## Compatibility
+
+Describe the tested spa connection type and ESP8266 board.
