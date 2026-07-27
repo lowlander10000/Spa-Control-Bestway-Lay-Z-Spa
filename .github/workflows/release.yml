@@ -40,8 +40,17 @@ jobs:
           cp .pio/build/nodemcuv2/littlefs.bin "dist/Spa_Control_v${VERSION}_littlefs.bin"
           sha256sum dist/*.bin > dist/SHA256SUMS.txt
 
-      - name: Create GitHub release and upload assets
+           - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME"             dist/*             --title "Spa Control $GITHUB_REF_NAME"             --generate-notes
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release already exists; uploading assets..."
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            echo "Creating new release..."
+            gh release create "$GITHUB_REF_NAME" \
+              dist/* \
+              --title "Spa Control $GITHUB_REF_NAME" \
+              --generate-notes
+          fi
