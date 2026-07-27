@@ -118,17 +118,17 @@ void handleHardwarePost() {
   }
 
   const String body = server.arg("plain");
-  DynamicJsonDocument doc(1536);
-  const DeserializationError error = deserializeJson(doc, body);
-  if (error) {
+  DynamicJsonDocument requestDoc(1024);
+  const DeserializationError requestError = deserializeJson(requestDoc, body);
+  if (requestError) {
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"Ongeldige JSON\"}");
     return;
   }
 
-  const int cio = doc["cio"] | -1;
-  const int dsp = doc["dsp"] | -1;
-  const char* pcb = doc["pcb"] | "";
-  JsonArray pins = doc["pins"].as<JsonArray>();
+  const int cio = requestDoc["cio"] | -1;
+  const int dsp = requestDoc["dsp"] | -1;
+  const char* pcb = requestDoc["pcb"] | "";
+  JsonArray pins = requestDoc["pins"].as<JsonArray>();
   if (cio < 0 || cio > 8 || dsp < 0 || dsp > 8 || !pins || pins.size() != 8 ||
       !(String(pcb) == "v1" || String(pcb) == "v2" || String(pcb) == "v2b" || String(pcb) == "custom")) {
     server.send(400, "application/json", "{\"ok\":false,\"error\":\"Ongeldige hardware-instellingen\"}");
@@ -143,12 +143,29 @@ void handleHardwarePost() {
     }
   }
 
+  // Start with the existing file so settings managed elsewhere, such as
+  // pwr_levels from the Energy page, are never removed by the Hardware page.
+  DynamicJsonDocument mergedDoc(2048);
+  File existingFile = LittleFS.open("/bestway_hwcfg.json", "r");
+  if (existingFile) {
+    deserializeJson(mergedDoc, existingFile);
+    existingFile.close();
+  }
+
+  mergedDoc["cio"] = cio;
+  mergedDoc["dsp"] = dsp;
+  mergedDoc["pcb"] = pcb;
+  mergedDoc["hasTempSensor"] = requestDoc["hasTempSensor"] | "0";
+  mergedDoc.remove("pins");
+  JsonArray mergedPins = mergedDoc.createNestedArray("pins");
+  for (JsonVariant pin : pins) mergedPins.add(pin.as<int>());
+
   File file = LittleFS.open("/bestway_hwcfg.json", "w");
   if (!file) {
     server.send(500, "application/json", "{\"ok\":false,\"error\":\"Opslaan mislukt\"}");
     return;
   }
-  serializeJsonPretty(doc, file);
+  serializeJsonPretty(mergedDoc, file);
   file.close();
   eventLog.info("Hardwareconfiguratie opgeslagen; herstart vereist");
   server.send(200, "application/json", "{\"ok\":true,\"restartRequired\":true}");

@@ -1,6 +1,6 @@
-const CACHE_NAME = "spa-control-v3000";
+const CACHE_NAME = "spa-control-v3001";
 const STATIC_FILES = [
-  "/manifest.json?v=3000",
+  "/manifest.json?v=3001",
   "/icons/icon.svg",
   "/icons/icon-192.png",
   "/icons/icon-512.png",

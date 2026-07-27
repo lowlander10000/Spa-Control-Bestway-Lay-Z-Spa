@@ -573,7 +573,7 @@ String wifiGetStatusJson() {
   json += "\",\"hostname\":\"";
   json += escapeJson(wifiHostname());
 
-  json += "\",\"firmware\":\"v3.0.0";
+  json += "\",\"firmware\":\"v3.0.1";
   json += "\",\"cpu\":";
   json += String(ESP.getCpuFreqMHz());
 

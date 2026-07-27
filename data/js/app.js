@@ -1721,13 +1721,6 @@ function applyHardwarePins() {
   pins.slice(0,7).forEach((pin, index) => document.getElementById(`hwPin${index+1}`).value = pin);
 }
 
-function toggleHardwarePowerFields() {
-  const disabled = !document.getElementById("hwPowerOverride")?.checked;
-  ["hwHeat1","hwHeat2","hwPump","hwAir","hwIdle","hwJet"].forEach(id => {
-    const el = document.getElementById(id); if (el) el.disabled = disabled;
-  });
-}
-
 async function loadHardwareSettings() {
   initHardwareSelectors();
   try {
@@ -1739,15 +1732,6 @@ async function loadHardwareSettings() {
     document.getElementById("hwPcb").value = cfg.pcb ?? "custom";
     document.getElementById("hwTempSensor").checked = String(cfg.hasTempSensor) === "1";
     (cfg.pins || []).forEach((pin,index) => { const el=document.getElementById(`hwPin${index+1}`); if(el) el.value=pin; });
-    const p=cfg.pwr_levels || {};
-    document.getElementById("hwPowerOverride").checked = !!p.override;
-    document.getElementById("hwHeat1").value = p.heater_stage1 ?? 1900;
-    document.getElementById("hwHeat2").value = p.heater_stage2 ?? 0;
-    document.getElementById("hwPump").value = p.pump ?? 40;
-    document.getElementById("hwAir").value = p.air ?? 800;
-    document.getElementById("hwIdle").value = p.idle ?? 2;
-    document.getElementById("hwJet").value = p.jet ?? 400;
-    toggleHardwarePowerFields();
   } catch (error) { showToast(error.message, "error"); }
 }
 
@@ -1756,12 +1740,7 @@ async function saveHardwareSettings() {
   const cfg = {
     cio: value("hwCio"), dsp: value("hwDsp"), pcb: document.getElementById("hwPcb").value,
     hasTempSensor: document.getElementById("hwTempSensor").checked ? "1" : "0",
-    pins: Array.from({length:8},(_,i)=>value(`hwPin${i+1}`)),
-    pwr_levels: {
-      override: document.getElementById("hwPowerOverride").checked,
-      heater_stage1:value("hwHeat1"), heater_stage2:value("hwHeat2"), pump:value("hwPump"),
-      air:value("hwAir"), idle:value("hwIdle"), jet:value("hwJet")
-    }
+    pins: Array.from({length:8},(_,i)=>value(`hwPin${i+1}`))
   };
   try {
     const response = await fetch("/api/hardware", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cfg)});
@@ -1803,7 +1782,7 @@ async function applyLanguage(lang){
   activeLanguage=["nl","en","de","fr"].includes(lang)?lang:"en";
   document.documentElement.lang=activeLanguage;
   try{
-    const response=await fetch(`/lang/${activeLanguage}.json?v=3000`,{cache:"no-store"});
+    const response=await fetch(`/lang/${activeLanguage}.json?v=3001`,{cache:"no-store"});
     if(!response.ok) throw new Error(`Language file ${response.status}`);
     languagePack=await response.json();
   }catch(error){
@@ -1886,4 +1865,4 @@ function initializeLocalizedFileInputs(){
 }
 
 const observer=new MutationObserver(mutations=>{for(const m of mutations){m.addedNodes.forEach(n=>{if(n.nodeType===Node.TEXT_NODE)translateTextNode(n);else if(n.nodeType===Node.ELEMENT_NODE)translateDom(n);});}});
-document.addEventListener("DOMContentLoaded",()=>{resetLiveControls();loadLanguageSettings();loadAppearanceSettings();loadWidgetSettings();applyDashboardOrder();loadDashboardOrderEditor();applyDashboardButtonOrder();loadDashboardButtonOrderEditor();initializeLocalizedFileInputs();loadWeatherSettings();fetchWeather();scheduleWeatherRefresh();const unitSelect=document.getElementById("temperatureUnit");if(unitSelect){unitSelect.addEventListener("change",()=>{preferredTemperatureUnit=unitSelect.value||"Celsius";localStorage.setItem("layzspaTemperatureUnit",preferredTemperatureUnit);applyTemperatureUnit();});}observer.observe(document.body,{childList:true,subtree:true});if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js?v=3000").catch(()=>{});});
+document.addEventListener("DOMContentLoaded",()=>{resetLiveControls();loadLanguageSettings();loadAppearanceSettings();loadWidgetSettings();applyDashboardOrder();loadDashboardOrderEditor();applyDashboardButtonOrder();loadDashboardButtonOrderEditor();initializeLocalizedFileInputs();loadWeatherSettings();fetchWeather();scheduleWeatherRefresh();const unitSelect=document.getElementById("temperatureUnit");if(unitSelect){unitSelect.addEventListener("change",()=>{preferredTemperatureUnit=unitSelect.value||"Celsius";localStorage.setItem("layzspaTemperatureUnit",preferredTemperatureUnit);applyTemperatureUnit();});}observer.observe(document.body,{childList:true,subtree:true});if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js?v=3001").catch(()=>{});});

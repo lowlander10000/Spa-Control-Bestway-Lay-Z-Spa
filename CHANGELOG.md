@@ -2,6 +2,20 @@
 
 All notable changes to Spa Control are recorded here.
 
+## [3.0.1] - 2026-07-27
+
+Hardware page bug-fix release.
+
+### Fixed
+- Removed obsolete Hardware-page references to `hwPowerOverride`, `hwHeat1`, `hwHeat2`, `hwPump`, `hwAir`, `hwIdle`, and `hwJet`.
+- Opening the Hardware page no longer fails with `null is not an object`.
+- Hardware settings now save only hardware-related fields.
+- Existing `pwr_levels` and other unknown fields in `bestway_hwcfg.json` are preserved.
+- Energy and power-consumption settings remain managed exclusively from the Energy page.
+
+### Changed
+- Firmware, web interface and PWA cache versions updated to v3.0.1.
+
 ## [3.0.0] - 2026-07-24
 
 First stable Spa Control release.
@@ -28,4 +42,5 @@ First stable Spa Control release.
 
 ## 2.x development series
 
-The 2.x versions were iterative development builds leading to v3.0.0. Detailed historical notes remain available in the `RELEASE_NOTES_V2.*.md` files.
+The 2.x versions were iterative development builds leading to v3.0.0.
+Detailed historical notes remain available in the `RELEASE_NOTES_V2.*.md` files.
