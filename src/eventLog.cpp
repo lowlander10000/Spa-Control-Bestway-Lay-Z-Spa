@@ -1,101 +1,12 @@
 #include "eventLog.h"
 #include <LittleFS.h>
 #include "timeManager.h"
-
 EventLog eventLog;
-
-bool EventLog::begin() {
-  rotateIfNeeded();
-  info("Controller gestart");
-  return true;
-}
-
-void EventLog::info(const String& message) { append("INFO", message); }
-void EventLog::warning(const String& message) { append("WARN", message); }
-void EventLog::error(const String& message) { append("ERROR", message); }
-
-void EventLog::append(const char* level, const String& message) {
-  rotateIfNeeded();
-  File file = LittleFS.open(LOG_FILE, "a");
-  if (!file) return;
-
-  file.print(static_cast<unsigned long>(timeManager.nowUtc()));
-  file.print('|');
-  file.print(level);
-  file.print('|');
-  for (size_t i = 0; i < message.length(); ++i) {
-    const char value = message[i];
-    file.print((value == '\n' || value == '\r') ? ' ' : value);
-  }
-  file.println();
-  file.close();
-}
-
-void EventLog::rotateIfNeeded() {
-  if (!LittleFS.exists(LOG_FILE)) return;
-  File file = LittleFS.open(LOG_FILE, "r");
-  const size_t size = file ? file.size() : 0;
-  if (file) file.close();
-  if (size > MAX_FILE_SIZE) {
-    LittleFS.remove("/events.old.log");
-    LittleFS.rename(LOG_FILE, "/events.old.log");
-  }
-}
-
-String EventLog::toJson(uint16_t maxLines) const {
-  File file = LittleFS.open(LOG_FILE, "r");
-  if (!file) return "[]";
-
-  const uint16_t limit = constrain(maxLines, 1, 50);
-  uint16_t lineCount = 0;
-  while (file.available()) {
-    if (file.read() == '\n') ++lineCount;
-    yield();
-  }
-
-  const uint16_t skipLines = lineCount > limit ? lineCount - limit : 0;
-  file.seek(0, SeekSet);
-  uint16_t skipped = 0;
-  while (file.available() && skipped < skipLines) {
-    if (file.read() == '\n') ++skipped;
-    yield();
-  }
-
-  String json;
-  json.reserve(256 + static_cast<size_t>(limit) * 96);
-  json = '[';
-  bool first = true;
-  while (file.available()) {
-    String line = file.readStringUntil('\n');
-    line.trim();
-    if (line.isEmpty()) continue;
-
-    const int firstSeparator = line.indexOf('|');
-    const int secondSeparator = line.indexOf('|', firstSeparator + 1);
-    if (firstSeparator < 0 || secondSeparator < 0) continue;
-
-    String message = line.substring(secondSeparator + 1);
-    message.replace("\\", "\\\\");
-    message.replace("\"", "\\\"");
-
-    if (!first) json += ',';
-    first = false;
-    json += F("{\"timestamp\":");
-    json += line.substring(0, firstSeparator);
-    json += F(",\"level\":\"");
-    json += line.substring(firstSeparator + 1, secondSeparator);
-    json += F("\",\"message\":\"");
-    json += message;
-    json += F("\"}");
-    yield();
-  }
-  file.close();
-  json += ']';
-  return json;
-}
-
-bool EventLog::clear() {
-  if (LittleFS.exists(LOG_FILE)) LittleFS.remove(LOG_FILE);
-  if (LittleFS.exists("/events.old.log")) LittleFS.remove("/events.old.log");
-  return true;
-}
+bool EventLog::begin(){ rotateIfNeeded(); info("Controller gestart"); return true; }
+void EventLog::info(const String& m){ append("INFO",m); }
+void EventLog::warning(const String& m){ append("WARN",m); }
+void EventLog::error(const String& m){ append("ERROR",m); }
+void EventLog::append(const char* level,const String& message){ rotateIfNeeded(); File f=LittleFS.open(LOG_FILE,"a"); if(!f)return; String line=String((unsigned long)timeManager.nowUtc())+"|"+level+"|"+message; line.replace("\n"," "); line.replace("\r"," "); f.println(line); f.close(); }
+void EventLog::rotateIfNeeded(){ if(!LittleFS.exists(LOG_FILE))return; File f=LittleFS.open(LOG_FILE,"r"); size_t size=f?f.size():0; if(f)f.close(); if(size>MAX_FILE_SIZE){ LittleFS.remove("/events.old.log"); LittleFS.rename(LOG_FILE,"/events.old.log"); } }
+String EventLog::toJson(uint16_t maxLines) const { File f=LittleFS.open(LOG_FILE,"r"); if(!f)return "[]"; String lines[50]; uint16_t cap=maxLines>50?50:maxLines,count=0; while(f.available()){ String line=f.readStringUntil('\n'); line.trim(); if(line.isEmpty())continue; lines[count%cap]=line; count++; yield(); } f.close(); uint16_t shown=count<cap?count:cap; uint16_t start=count<cap?0:count%cap; String j="["; for(uint16_t i=0;i<shown;i++){ String line=lines[(start+i)%cap]; int a=line.indexOf('|'),b=line.indexOf('|',a+1); if(a<0||b<0)continue; String msg=line.substring(b+1); msg.replace("\\","\\\\"); msg.replace("\"","\\\""); if(j.length()>1)j+=","; j+="{\"timestamp\":"+line.substring(0,a)+",\"level\":\""+line.substring(a+1,b)+"\",\"message\":\""+msg+"\"}"; } j+="]"; return j; }
+bool EventLog::clear(){ if(LittleFS.exists(LOG_FILE))LittleFS.remove(LOG_FILE); if(LittleFS.exists("/events.old.log"))LittleFS.remove("/events.old.log"); return true; }

@@ -8,7 +8,7 @@ namespace {
   constexpr uint32_t MAGIC = 0x48535431;
   constexpr uint16_t VERSION = 1;
   String sampleJson(const HistorySample& s) {
-    String json; json.reserve(128); json = "{";
+    String json = "{";
     json += "\"timestamp\":" + String((unsigned long)s.timestamp);
     json += ",\"temperature\":" + String(s.temperature);
     json += ",\"target\":" + String(s.targetTemperature);
@@ -56,9 +56,7 @@ const HistorySample* HistoryManager::get(uint16_t index) const {
 String HistoryManager::toJson(uint16_t maxItems) const {
   if (maxItems == 0 || maxItems > count_) maxItems = count_;
   const uint16_t start = count_ - maxItems;
-  String json;
-  json.reserve(2 + static_cast<size_t>(maxItems) * 112);
-  json = "[";
+  String json = "[";
   for (uint16_t i = start; i < count_; i++) {
     const HistorySample* s = get(i); if (!s) continue;
     if (json.length() > 1) json += ",";

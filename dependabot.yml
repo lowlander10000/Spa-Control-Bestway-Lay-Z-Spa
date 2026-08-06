@@ -1,0 +1,54 @@
+name: Bug report
+description: Report a reproducible problem in Spa Control
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include Wi-Fi passwords, MQTT passwords, API keys or other secrets.
+  - type: input
+    id: version
+    attributes:
+      label: Spa Control version
+      placeholder: v3.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: hardware
+    attributes:
+      label: ESP8266 board
+      options:
+        - NodeMCU v2 / ESP-12E
+        - Other ESP8266 board
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      render: shell
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed passwords, keys and personal network information.
+          required: true

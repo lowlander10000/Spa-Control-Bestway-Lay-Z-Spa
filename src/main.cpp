@@ -14,7 +14,6 @@
 #include "energyManager.h"
 #include "eventLog.h"
 #include "configPreserver.h"
-#include "maintenanceManager.h"
 
 void setup() {
   Serial.begin(115200);
@@ -35,7 +34,6 @@ void setup() {
   historyManager.begin();
   energyManager.begin();
   eventLog.begin();
-  maintenanceManager.begin();
 
   wifiBegin();
 
@@ -51,19 +49,11 @@ void setup() {
 void loop() {
   wifiLoop();
   ArduinoOTA.handle();
-
-  if (webAppFilesystemUpdateActive()) {
-    webAppLoop();
-    yield();
-    return;
-  }
-
   spaInterface.loop();
   mqttManager.loop();
   timeManager.loop();
   schedulerManager.loop();
   historyManager.loop();
   energyManager.loop();
-  maintenanceManager.loop();
   webAppLoop();
 }

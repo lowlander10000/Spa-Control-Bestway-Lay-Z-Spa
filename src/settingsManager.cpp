@@ -152,7 +152,6 @@ const RegionalSettings& SettingsManager::regional() const { return regionalSetti
 RegionalSettings& SettingsManager::regional() { return regionalSettings_; }
 const EnergySettings& SettingsManager::energy() const { return energySettings_; }
 EnergySettings& SettingsManager::energy() { return energySettings_; }
-uint32_t SettingsManager::revision() const { return revision_; }
 
 bool SettingsManager::load() {
   File file = LittleFS.open(SETTINGS_FILE, "r");
@@ -183,42 +182,6 @@ bool SettingsManager::load() {
     "homeAssistantDiscovery",
     mqttSettings_.homeAssistantDiscovery
   );
-  mqttSettings_.publishTemperature = readJsonBool(json, "publishTemperature", mqttSettings_.publishTemperature);
-  mqttSettings_.publishTarget = readJsonBool(json, "publishTarget", mqttSettings_.publishTarget);
-  mqttSettings_.publishPower = readJsonBool(json, "publishPower", mqttSettings_.publishPower);
-  mqttSettings_.publishHeater = readJsonBool(json, "publishHeater", mqttSettings_.publishHeater);
-  mqttSettings_.publishHeatingActive = readJsonBool(json, "publishHeatingActive", mqttSettings_.publishHeatingActive);
-  mqttSettings_.publishFilter = readJsonBool(json, "publishFilter", mqttSettings_.publishFilter);
-  mqttSettings_.publishBubbles = readJsonBool(json, "publishBubbles", mqttSettings_.publishBubbles);
-  mqttSettings_.publishJets = readJsonBool(json, "publishJets", mqttSettings_.publishJets);
-  mqttSettings_.publishLocked = readJsonBool(json, "publishLocked", mqttSettings_.publishLocked);
-  mqttSettings_.publishConnected = readJsonBool(json, "publishConnected", mqttSettings_.publishConnected);
-  mqttSettings_.publishReady = readJsonBool(json, "publishReady", mqttSettings_.publishReady);
-  mqttSettings_.publishRssi = readJsonBool(json, "publishRssi", mqttSettings_.publishRssi);
-  mqttSettings_.publishHeap = readJsonBool(json, "publishHeap", mqttSettings_.publishHeap);
-  mqttSettings_.publishUptime = readJsonBool(json, "publishUptime", mqttSettings_.publishUptime);
-  mqttSettings_.publishFirmware = readJsonBool(json, "publishFirmware", mqttSettings_.publishFirmware);
-  mqttSettings_.publishIp = readJsonBool(json, "publishIp", mqttSettings_.publishIp);
-  mqttSettings_.publishJson = readJsonBool(json, "publishJson", mqttSettings_.publishJson);
-  mqttSettings_.publishMaintenance = readJsonBool(json, "publishMaintenance", mqttSettings_.publishMaintenance);
-  mqttSettings_.topicTemperature = readJsonString(json, "topicTemperature", mqttSettings_.topicTemperature);
-  mqttSettings_.topicTarget = readJsonString(json, "topicTarget", mqttSettings_.topicTarget);
-  mqttSettings_.topicPower = readJsonString(json, "topicPower", mqttSettings_.topicPower);
-  mqttSettings_.topicHeater = readJsonString(json, "topicHeater", mqttSettings_.topicHeater);
-  mqttSettings_.topicHeatingActive = readJsonString(json, "topicHeatingActive", mqttSettings_.topicHeatingActive);
-  mqttSettings_.topicFilter = readJsonString(json, "topicFilter", mqttSettings_.topicFilter);
-  mqttSettings_.topicBubbles = readJsonString(json, "topicBubbles", mqttSettings_.topicBubbles);
-  mqttSettings_.topicJets = readJsonString(json, "topicJets", mqttSettings_.topicJets);
-  mqttSettings_.topicLocked = readJsonString(json, "topicLocked", mqttSettings_.topicLocked);
-  mqttSettings_.topicConnected = readJsonString(json, "topicConnected", mqttSettings_.topicConnected);
-  mqttSettings_.topicReady = readJsonString(json, "topicReady", mqttSettings_.topicReady);
-  mqttSettings_.topicRssi = readJsonString(json, "topicRssi", mqttSettings_.topicRssi);
-  mqttSettings_.topicHeap = readJsonString(json, "topicHeap", mqttSettings_.topicHeap);
-  mqttSettings_.topicUptime = readJsonString(json, "topicUptime", mqttSettings_.topicUptime);
-  mqttSettings_.topicFirmware = readJsonString(json, "topicFirmware", mqttSettings_.topicFirmware);
-  mqttSettings_.topicIp = readJsonString(json, "topicIp", mqttSettings_.topicIp);
-  mqttSettings_.topicJson = readJsonString(json, "topicJson", mqttSettings_.topicJson);
-  mqttSettings_.topicMaintenance = readJsonString(json, "topicMaintenance", mqttSettings_.topicMaintenance);
 
   regionalSettings_.language = readJsonString(
     json,
@@ -256,7 +219,6 @@ bool SettingsManager::load() {
   energySettings_.pricePerKwh = readJsonFloat(json, "pricePerKwh", energySettings_.pricePerKwh);
   energySettings_.currency = readJsonString(json, "currency", energySettings_.currency);
 
-  ++revision_;
   Serial.println("Instellingen geladen");
   return true;
 }
@@ -269,7 +231,7 @@ bool SettingsManager::save() {
   }
 
   String json;
-  json.reserve(2600);
+  json.reserve(640);
   json = "{\n";
   json += "  \"enabled\": " + String(mqttSettings_.enabled ? "true" : "false") + ",\n";
   json += "  \"host\": \"" + escapeJson(mqttSettings_.host) + "\",\n";
@@ -281,42 +243,6 @@ bool SettingsManager::save() {
   json += "  \"homeAssistantDiscovery\": " + String(
     mqttSettings_.homeAssistantDiscovery ? "true" : "false"
   ) + ",\n";
-  json += "  \"publishTemperature\": " + String(mqttSettings_.publishTemperature ? "true" : "false") + ",\n";
-  json += "  \"publishTarget\": " + String(mqttSettings_.publishTarget ? "true" : "false") + ",\n";
-  json += "  \"publishPower\": " + String(mqttSettings_.publishPower ? "true" : "false") + ",\n";
-  json += "  \"publishHeater\": " + String(mqttSettings_.publishHeater ? "true" : "false") + ",\n";
-  json += "  \"publishHeatingActive\": " + String(mqttSettings_.publishHeatingActive ? "true" : "false") + ",\n";
-  json += "  \"publishFilter\": " + String(mqttSettings_.publishFilter ? "true" : "false") + ",\n";
-  json += "  \"publishBubbles\": " + String(mqttSettings_.publishBubbles ? "true" : "false") + ",\n";
-  json += "  \"publishJets\": " + String(mqttSettings_.publishJets ? "true" : "false") + ",\n";
-  json += "  \"publishLocked\": " + String(mqttSettings_.publishLocked ? "true" : "false") + ",\n";
-  json += "  \"publishConnected\": " + String(mqttSettings_.publishConnected ? "true" : "false") + ",\n";
-  json += "  \"publishReady\": " + String(mqttSettings_.publishReady ? "true" : "false") + ",\n";
-  json += "  \"publishRssi\": " + String(mqttSettings_.publishRssi ? "true" : "false") + ",\n";
-  json += "  \"publishHeap\": " + String(mqttSettings_.publishHeap ? "true" : "false") + ",\n";
-  json += "  \"publishUptime\": " + String(mqttSettings_.publishUptime ? "true" : "false") + ",\n";
-  json += "  \"publishFirmware\": " + String(mqttSettings_.publishFirmware ? "true" : "false") + ",\n";
-  json += "  \"publishIp\": " + String(mqttSettings_.publishIp ? "true" : "false") + ",\n";
-  json += "  \"publishJson\": " + String(mqttSettings_.publishJson ? "true" : "false") + ",\n";
-  json += "  \"publishMaintenance\": " + String(mqttSettings_.publishMaintenance ? "true" : "false") + ",\n";
-  json += "  \"topicTemperature\": \"" + escapeJson(mqttSettings_.topicTemperature) + "\",\n";
-  json += "  \"topicTarget\": \"" + escapeJson(mqttSettings_.topicTarget) + "\",\n";
-  json += "  \"topicPower\": \"" + escapeJson(mqttSettings_.topicPower) + "\",\n";
-  json += "  \"topicHeater\": \"" + escapeJson(mqttSettings_.topicHeater) + "\",\n";
-  json += "  \"topicHeatingActive\": \"" + escapeJson(mqttSettings_.topicHeatingActive) + "\",\n";
-  json += "  \"topicFilter\": \"" + escapeJson(mqttSettings_.topicFilter) + "\",\n";
-  json += "  \"topicBubbles\": \"" + escapeJson(mqttSettings_.topicBubbles) + "\",\n";
-  json += "  \"topicJets\": \"" + escapeJson(mqttSettings_.topicJets) + "\",\n";
-  json += "  \"topicLocked\": \"" + escapeJson(mqttSettings_.topicLocked) + "\",\n";
-  json += "  \"topicConnected\": \"" + escapeJson(mqttSettings_.topicConnected) + "\",\n";
-  json += "  \"topicReady\": \"" + escapeJson(mqttSettings_.topicReady) + "\",\n";
-  json += "  \"topicRssi\": \"" + escapeJson(mqttSettings_.topicRssi) + "\",\n";
-  json += "  \"topicHeap\": \"" + escapeJson(mqttSettings_.topicHeap) + "\",\n";
-  json += "  \"topicUptime\": \"" + escapeJson(mqttSettings_.topicUptime) + "\",\n";
-  json += "  \"topicFirmware\": \"" + escapeJson(mqttSettings_.topicFirmware) + "\",\n";
-  json += "  \"topicIp\": \"" + escapeJson(mqttSettings_.topicIp) + "\",\n";
-  json += "  \"topicJson\": \"" + escapeJson(mqttSettings_.topicJson) + "\",\n";
-  json += "  \"topicMaintenance\": \"" + escapeJson(mqttSettings_.topicMaintenance) + "\",\n";
   json += "  \"language\": \"" + escapeJson(regionalSettings_.language) + "\",\n";
   json += "  \"timeZone\": \"" + escapeJson(regionalSettings_.timeZone) + "\",\n";
   json += "  \"use24HourClock\": " + String(
@@ -341,7 +267,6 @@ bool SettingsManager::save() {
     return false;
   }
 
-  ++revision_;
   Serial.println("Instellingen opgeslagen");
   return true;
 }

@@ -771,7 +771,7 @@ h1 {
 .log-entry.level-warn{border-left-color:var(--orange)}.log-entry.level-error{border-left-color:var(--red)}
 .log-entry time { color:var(--muted);font-size:12px;white-space:nowrap; }.log-entry p{margin:0}.log-entry b{font-size:12px}
 .empty-state { padding:34px;text-align:center;color:var(--muted); }
-.bottom-nav { grid-template-columns:repeat(9,minmax(0,1fr)); }
+.bottom-nav { grid-template-columns:repeat(6,1fr); }
 .bottom-nav button { min-width:0; }
 .bottom-nav small { font-size:10px; }
 #plannerGrid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px; }
@@ -1321,16 +1321,10 @@ h1 {
     max-width: 520px;
     margin: 0;
     transform: translateX(-50%);
-    grid-template-columns: none;
-    grid-auto-flow: column;
-    grid-auto-columns: 72px;
-    justify-content: start;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 3px;
     padding: 7px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-    overscroll-behavior-x: contain;
+    overflow: visible;
     border-radius: 26px;
     background: rgba(4, 12, 22, .97);
     box-shadow:
@@ -1932,151 +1926,3 @@ body.compact-cards .settings-card,body.compact-cards .premium-device,body.compac
   flex: 0 0 auto;
   padding-bottom: max(22px, env(safe-area-inset-bottom));
 }
-
-
-/* v3.2.0-test1 - sorteerbare onderste navigatie */
-.navigation-order-list{margin-top:14px}
-.navigation-order-item{cursor:default}
-.navigation-order-icon{display:grid;place-items:center;width:30px;font-size:21px}
-.navigation-order-name{flex:1;min-width:0}
-.navigation-order-toggle{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:11px;background:rgba(255,255,255,.045);color:var(--muted);font-size:13px;font-weight:750;cursor:pointer}
-.navigation-order-toggle input{width:18px;height:18px;margin:0;accent-color:var(--blue)}
-@media(max-width:520px){.navigation-order-item{gap:9px;padding:9px 10px}.navigation-order-toggle span{display:none}.navigation-order-toggle{padding:8px}.navigation-order-icon{width:26px}}
-
-/* v3.2.0-test2 - verzorgde MQTT brokerinstellingen */
-.mqtt-settings-card{overflow:hidden}
-.mqtt-settings-title{align-items:flex-start;margin-bottom:16px}
-.mqtt-settings-title p{max-width:560px}
-.mqtt-master-switch,.mqtt-option-card{display:flex;align-items:center;gap:14px;width:100%;padding:15px 16px;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:linear-gradient(145deg,rgba(25,168,255,.12),rgba(255,255,255,.035));cursor:pointer}
-.mqtt-master-switch>span:first-child,.mqtt-option-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
-.mqtt-master-switch strong,.mqtt-option-copy strong{font-size:15px;color:var(--text)}
-.mqtt-master-switch small,.mqtt-option-copy small{font-size:12px;line-height:1.45;color:var(--muted)}
-.ui-switch{position:relative;display:inline-flex;flex:0 0 auto;width:48px;height:28px}
-.ui-switch input{position:absolute;opacity:0;pointer-events:none}
-.ui-switch i{display:block;width:48px;height:28px;border-radius:999px;background:rgba(139,154,171,.35);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);transition:.2s ease}
-.ui-switch i:after{content:"";position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 3px 8px rgba(0,0,0,.35);transition:.2s ease}
-.ui-switch input:checked+i{background:var(--blue);box-shadow:0 0 0 1px rgba(25,168,255,.55),0 0 18px rgba(25,168,255,.24)}
-.ui-switch input:checked+i:after{transform:translateX(20px)}
-.ui-switch input:focus-visible+i{outline:2px solid var(--text);outline-offset:3px}
-.mqtt-section-heading{display:flex;align-items:center;gap:11px;margin:22px 2px 11px;padding-top:18px;border-top:1px solid rgba(255,255,255,.08)}
-.mqtt-section-heading>span{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:rgba(255,255,255,.07);font-size:18px}
-.mqtt-section-heading>div{display:flex;flex-direction:column;gap:2px}
-.mqtt-section-heading strong{font-size:14px;color:var(--text)}
-.mqtt-section-heading small{font-size:12px;color:var(--muted)}
-.mqtt-form-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(150px,.65fr);gap:12px}
-.mqtt-field{display:flex;min-width:0;flex-direction:column;gap:7px;margin:0;padding:12px;border:1px solid rgba(255,255,255,.085);border-radius:14px;background:rgba(255,255,255,.035)}
-.mqtt-field>span{font-size:12px;font-weight:800;color:var(--muted)}
-.mqtt-field input{width:100%;min-width:0;margin:0!important;border-radius:11px}
-.mqtt-field-wide{grid-column:span 1}
-.mqtt-field-help{font-size:11px;color:var(--muted);padding:0 2px}
-.mqtt-field-help b{color:var(--text)}
-.mqtt-option-card{margin-top:12px;background:rgba(255,255,255,.035)}
-.mqtt-option-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border-radius:13px;background:rgba(25,168,255,.12);font-size:21px}
-.mqtt-save-button{display:flex;justify-content:center;align-items:center;gap:8px;width:100%;margin-top:16px}
-@media(max-width:680px){.mqtt-form-grid{grid-template-columns:1fr}.mqtt-field-wide{grid-column:auto}.mqtt-master-switch,.mqtt-option-card{padding:13px}.mqtt-section-heading small{line-height:1.35}}
-
-/* Spa Control 3.2.0 - MQTT publicaties en onderhoud */
-.mqtt-publication-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}.mqtt-publication-card{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.055);transition:.2s}.mqtt-publication-card:hover{border-color:rgba(25,168,255,.45)}.mqtt-publication-card.disabled{opacity:.55}.mqtt-publication-head{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:10px}.mqtt-publication-head>span:nth-child(2){display:flex;flex-direction:column;gap:3px}.mqtt-publication-head small{color:var(--muted);font-size:.78rem}.mqtt-publication-card>input{width:100%;margin:0;background:rgba(0,0,0,.2)}.mqtt-default-button{width:100%;margin:0 0 12px}.maintenance-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.maintenance-card{padding:18px;border-radius:20px;border:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;gap:16px}.maintenance-card.due{border-color:rgba(255,77,94,.75);box-shadow:0 0 0 1px rgba(255,77,94,.18),0 12px 28px rgba(255,77,94,.12)}.maintenance-card.soon{border-color:rgba(255,159,67,.7)}.maintenance-card.disabled{opacity:.6}.maintenance-card-head{display:grid;grid-template-columns:46px 1fr auto;gap:10px;align-items:start}.maintenance-card-head h3{margin:0 0 4px}.maintenance-card-head p{margin:0;color:var(--muted);font-size:.85rem}.maintenance-icon{font-size:1.7rem}.maintenance-badge{padding:6px 9px;border-radius:999px;background:rgba(0,223,154,.13);color:var(--green);font-size:.76rem;font-weight:800;white-space:nowrap}.maintenance-card.due .maintenance-badge{background:rgba(255,77,94,.13);color:var(--red)}.maintenance-card.soon .maintenance-badge{background:rgba(255,159,67,.13);color:var(--orange)}.maintenance-dates{display:grid;grid-template-columns:1fr 1fr;gap:10px}.maintenance-dates>div{padding:11px;border-radius:13px;background:rgba(0,0,0,.16);display:flex;flex-direction:column;gap:4px}.maintenance-dates small{color:var(--muted)}.maintenance-setting{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0}.maintenance-setting input[type=number]{width:90px;margin:0}.maintenance-save{width:100%;margin-top:16px}.maintenance-overall{padding:9px 13px;border-radius:999px;background:rgba(0,223,154,.13);color:var(--green);font-weight:800}.maintenance-overall[data-status=WARNING]{background:rgba(255,159,67,.13);color:var(--orange)}.maintenance-overall[data-status=ALARM]{background:rgba(255,77,94,.13);color:var(--red)}.maintenance-alert,.dashboard-maintenance-alert{width:100%;border:1px solid rgba(255,77,94,.45);background:rgba(255,77,94,.11);color:var(--text);border-radius:16px;padding:13px 16px;margin-bottom:16px;text-align:left}.maintenance-alert{display:flex;justify-content:space-between;gap:12px}.dashboard-maintenance-alert{cursor:pointer;font:inherit;font-weight:800}.hidden{display:none!important}
-@media(max-width:900px){.maintenance-grid{grid-template-columns:1fr}.mqtt-publication-grid{grid-template-columns:1fr}}@media(max-width:520px){.maintenance-card-head{grid-template-columns:40px 1fr}.maintenance-badge{grid-column:2}.maintenance-dates{grid-template-columns:1fr}.maintenance-alert{flex-direction:column}}
-
-
-/* v3.2.0 RC3 - algemene desktop-layout, bereikbare navigatie en inklapbare MQTT-instellingen */
-.view.active:not(#dashboardView){grid-column:1 / -1;min-width:0;width:100%;}
-#settingsView.active{grid-column:1 / -1;width:100%;min-width:0;}
-#settingsView.active .settings-wide-card{grid-column:1 / -1;min-width:0;width:100%;}
-#maintenanceView.active{grid-column:1 / -1;width:100%;min-width:0;}
-
-.mqtt-collapse-toggle{
-  display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;
-  width:100%;margin:2px 0 0;padding:14px 16px;border:1px solid var(--line);border-radius:16px;
-  background:rgba(255,255,255,.045);color:var(--text);font:inherit;text-align:left;cursor:pointer;
-}
-.mqtt-collapse-toggle:hover{background:rgba(255,255,255,.075);border-color:rgba(25,168,255,.45)}
-.mqtt-collapse-icon{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:rgba(25,168,255,.13);font-size:20px}
-.mqtt-collapse-copy{display:flex;min-width:0;flex-direction:column;gap:3px}
-.mqtt-collapse-copy b{font-size:15px}.mqtt-collapse-copy small{color:var(--muted);font-size:12px;line-height:1.35}
-.mqtt-collapse-chevron{font-size:24px;transition:transform .2s ease}
-.mqtt-collapse-toggle.open .mqtt-collapse-chevron{transform:rotate(180deg)}
-.mqtt-settings-panel[hidden]{display:none!important}
-.mqtt-settings-panel{padding-top:14px;min-width:0}
-
-/* Brede MQTT-kaarten: geen afgebroken woorden of kaarten buiten beeld. */
-.mqtt-publication-grid{grid-template-columns:repeat(3,minmax(240px,1fr));align-items:stretch}
-.mqtt-publication-card,.mqtt-publication-head,.mqtt-option-copy{min-width:0}
-.mqtt-publication-head>span:nth-child(2){min-width:0}
-.mqtt-publication-head strong,.mqtt-publication-head small{overflow-wrap:normal;word-break:normal;hyphens:none}
-.mqtt-publication-card>input{box-sizing:border-box;min-width:0}
-
-/* Onderhoud gebruikt de echte beschikbare desktopbreedte. */
-.maintenance-grid{grid-template-columns:repeat(3,minmax(260px,1fr));align-items:stretch}
-.maintenance-card{min-width:0;height:100%}
-.maintenance-card-head>div,.maintenance-dates>div{min-width:0}
-.maintenance-dates strong{overflow-wrap:anywhere}
-
-/* Alle navigatie-items blijven bereikbaar; op pc wrappen ze, op smalle schermen scrollen ze. */
-.bottom-nav{grid-template-columns:repeat(auto-fit,minmax(78px,1fr));width:100%;box-sizing:border-box}
-.bottom-nav button{min-width:0}
-.app{padding-bottom:28px}
-
-@media (max-width:1100px){
-  .mqtt-publication-grid{grid-template-columns:repeat(2,minmax(240px,1fr))}
-  .maintenance-grid{grid-template-columns:repeat(2,minmax(260px,1fr))}
-}
-@media (max-width:760px){
-  .bottom-nav{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(76px,1fr);grid-template-columns:none;overflow-x:auto;overscroll-behavior-inline:contain;scroll-snap-type:x proximity}
-  .bottom-nav button{scroll-snap-align:start}
-  .mqtt-publication-grid,.maintenance-grid{grid-template-columns:1fr}
-}
-@media (max-width:520px){
-  .mqtt-collapse-toggle{padding:12px 13px}.mqtt-collapse-copy small{display:none}
-}
-
-
-/* v3.2.0 RC7 - veilige mobiele scrollruimte en volledig menu */
-.app-menu{max-height:100dvh;min-height:0}
-.app-menu-grid{overflow-y:auto;min-height:0;padding-bottom:calc(32px + env(safe-area-inset-bottom));}
-@media (max-width:759px){
-  body:not(.without-bottom-nav) .app{padding-bottom:calc(118px + env(safe-area-inset-bottom))!important;}
-  .view{scroll-margin-bottom:calc(118px + env(safe-area-inset-bottom));}
-  .view.active{padding-bottom:calc(42px + env(safe-area-inset-bottom));}
-  .settings-card:last-child,.maintenance-grid:last-child,.mqtt-publications-grid:last-child{margin-bottom:34px;}
-}
-
-/* RC11 netwerkdiagnostiek */
-.live-log-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: .45rem;
-  white-space: nowrap;
-  font-weight: 600;
-}
-.live-log-toggle input { accent-color: var(--green, #00df9a); }
-
-#diagOtaError,
-#diagMqttError {
-  overflow-wrap: anywhere;
-  line-height: 1.25;
-}
-
-/* v3.2.0 RC15 translation, planner and diagnostics polish */
-#logsView .compact-head{align-items:flex-start;flex-wrap:wrap}
-#logsView .compact-head>div:first-child{min-width:min(100%,280px);flex:1 1 280px}
-#logsView .compact-head .toolbar{display:flex;flex:1 1 420px;flex-wrap:wrap;justify-content:flex-end;max-width:100%;min-width:0}
-#logsView .compact-head .toolbar>*{min-width:0;max-width:100%}
-#logsView .compact-head .toolbar select{flex:1 1 130px}
-#logsView .compact-head .toolbar button{flex:0 1 auto;white-space:nowrap}
-.schedule-list{display:grid;gap:8px;margin-top:10px}
-.schedule-row{display:grid;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--panel);min-width:0}
-.schedule-row>span{min-width:0;overflow-wrap:anywhere}.schedule-delete{width:38px;height:38px;font-size:15px}
-@media(max-width:760px){#logsView .compact-head .toolbar{justify-content:stretch}#logsView .compact-head .toolbar>*{flex:1 1 calc(50% - 8px)}#logsView .compact-head .live-log-toggle{flex-basis:100%}.schedule-row{grid-template-columns:auto 52px minmax(0,1fr) auto auto!important}}
-@media(max-width:430px){#logsView .compact-head .toolbar>*{flex-basis:100%}.schedule-row{grid-template-columns:auto 48px minmax(0,1fr) auto auto!important;padding:9px 8px;gap:6px}}
-
-/* RC16: collapsed settings cards and energy spacing */
-.settings-card.settings-collapsible > .settings-title{cursor:pointer;position:relative;padding-right:34px;user-select:none;}
-.settings-card.settings-collapsible > .settings-title::after{content:"⌄";position:absolute;right:4px;top:50%;transform:translateY(-50%) rotate(180deg);font-size:24px;color:var(--muted);transition:transform .2s ease;}
-.settings-card.settings-collapsible.settings-collapsed > .settings-title::after{transform:translateY(-50%) rotate(0deg);}
-.settings-card.settings-collapsible.settings-collapsed > :not(.settings-title){display:none!important;}
-.settings-card.settings-collapsible.settings-collapsed{padding-bottom:16px;}
-#energyView .energy-metrics{margin-bottom:20px;}
-#energyView > .settings-card{margin-top:20px;}
-@media(max-width:760px){#energyView .energy-metrics{margin-bottom:16px;}#energyView > .settings-card{margin-top:16px;}}

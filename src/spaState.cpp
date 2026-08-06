@@ -19,9 +19,7 @@ String SpaState::toJson() {
     ? WiFi.localIP().toString()
     : WiFi.softAPIP().toString();
 
-  String json;
-  json.reserve(320);
-  json = "{";
+  String json = "{";
   json += "\"wifi\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false") + ",";
   json += "\"mqtt\":" + String(mqttOnline ? "true" : "false") + ",";
   json += "\"dataValid\":" + String(dataValid ? "true" : "false") + ",";

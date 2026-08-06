@@ -2,14 +2,10 @@
 
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
-#include <LittleFS.h>
-#include <ArduinoJson.h>
 
 #include "settingsManager.h"
 #include "spaInterface.h"
 #include "spaState.h"
-#include "maintenanceManager.h"
-#include "eventLog.h"
 
 namespace {
   WiFiClient wifiClient;
@@ -18,7 +14,7 @@ namespace {
   constexpr unsigned long RECONNECT_INTERVAL_MS = 10000;
   constexpr unsigned long PUBLISH_INTERVAL_MS = 5000;
 
-  uint32_t activeSettingsRevision = 0;
+  String activeConfigKey;
 
   String topic(const String& suffix) {
     const auto& cfg = settingsManager.mqtt();
@@ -121,8 +117,7 @@ namespace {
   void publishSwitchDiscovery(
     const String& objectId,
     const String& name,
-    const String& icon,
-    const String& stateTopicSuffix
+    const String& icon
   ) {
     String payload;
     payload.reserve(700);
@@ -136,7 +131,7 @@ namespace {
                topic("command/" + objectId) +
                "\",";
     payload += "\"state_topic\":\"" +
-               topic(stateTopicSuffix) +
+               topic(objectId + "/state") +
                "\",";
     payload += "\"payload_on\":\"ON\",";
     payload += "\"payload_off\":\"OFF\",";
@@ -151,47 +146,6 @@ namespace {
       objectId,
       payload
     );
-  }
-
-  void publishBinarySensorDiscovery(
-    const String& objectId,
-    const String& name,
-    const String& icon,
-    const String& stateTopicSuffix,
-    const String& deviceClass = ""
-  ) {
-    String payload = "{";
-    payload += "\"name\":\"" + name + "\",";
-    payload += "\"unique_id\":\"layzspa_" + objectId + "\",";
-    payload += "\"object_id\":\"layzspa_" + objectId + "\",";
-    if (!icon.isEmpty()) payload += "\"icon\":\"" + icon + "\",";
-    if (!deviceClass.isEmpty()) payload += "\"device_class\":\"" + deviceClass + "\",";
-    payload += "\"state_topic\":\"" + topic(stateTopicSuffix) + "\",";
-    payload += "\"payload_on\":\"ON\",\"payload_off\":\"OFF\",";
-    payload += availabilityJson() + "," + deviceJson() + "}";
-    publishDiscoveryMessage("binary_sensor", objectId, payload);
-  }
-
-  void publishSensorDiscovery(
-    const String& objectId,
-    const String& name,
-    const String& icon,
-    const String& stateTopicSuffix,
-    const String& unit = "",
-    const String& deviceClass = "",
-    const String& stateClass = ""
-  ) {
-    String payload = "{";
-    payload += "\"name\":\"" + name + "\",";
-    payload += "\"unique_id\":\"layzspa_" + objectId + "\",";
-    payload += "\"object_id\":\"layzspa_" + objectId + "\",";
-    if (!icon.isEmpty()) payload += "\"icon\":\"" + icon + "\",";
-    if (!unit.isEmpty()) payload += "\"unit_of_measurement\":\"" + unit + "\",";
-    if (!deviceClass.isEmpty()) payload += "\"device_class\":\"" + deviceClass + "\",";
-    if (!stateClass.isEmpty()) payload += "\"state_class\":\"" + stateClass + "\",";
-    payload += "\"state_topic\":\"" + topic(stateTopicSuffix) + "\",";
-    payload += availabilityJson() + "," + deviceJson() + "}";
-    publishDiscoveryMessage("sensor", objectId, payload);
   }
 
   void publishDiscovery() {
@@ -211,7 +165,7 @@ namespace {
     payload += "\"device_class\":\"temperature\",";
     payload += "\"state_class\":\"measurement\",";
     payload += "\"state_topic\":\"" +
-               topic(cfg.topicTemperature) +
+               topic("temperature") +
                "\",";
     payload += "\"unit_of_measurement\":\"°C\",";
     payload += availabilityJson() + ",";
@@ -233,7 +187,7 @@ namespace {
                topic("command/target") +
                "\",";
     payload += "\"state_topic\":\"" +
-               topic(cfg.topicTarget) +
+               topic("target/state") +
                "\",";
     payload += "\"min\":20,";
     payload += "\"max\":40,";
@@ -250,32 +204,28 @@ namespace {
       payload
     );
 
-    if (cfg.publishHeater) publishSwitchDiscovery(
+    publishSwitchDiscovery(
       "heater",
       "Heater",
-      "mdi:radiator",
-      cfg.topicHeater
+      "mdi:radiator"
     );
 
-    if (cfg.publishFilter) publishSwitchDiscovery(
+    publishSwitchDiscovery(
       "filter",
       "Filter",
-      "mdi:water-pump",
-      cfg.topicFilter
+      "mdi:water-pump"
     );
 
-    if (cfg.publishBubbles) publishSwitchDiscovery(
+    publishSwitchDiscovery(
       "bubbles",
       "Bubbels",
-      "mdi:chart-bubble",
-      cfg.topicBubbles
+      "mdi:chart-bubble"
     );
 
-    if (cfg.publishJets) publishSwitchDiscovery(
+    publishSwitchDiscovery(
       "jets",
       "Jets",
-      "mdi:waves",
-      cfg.topicJets
+      "mdi:waves"
     );
 
     payload = "{";
@@ -284,7 +234,7 @@ namespace {
     payload += "\"object_id\":\"layzspa_connection\",";
     payload += "\"device_class\":\"connectivity\",";
     payload += "\"state_topic\":\"" +
-               topic(cfg.topicConnected) +
+               topic("spa/connected") +
                "\",";
     payload += "\"payload_on\":\"ON\",";
     payload += "\"payload_off\":\"OFF\",";
@@ -298,27 +248,19 @@ namespace {
       payload
     );
 
-    if (cfg.publishPower) publishBinarySensorDiscovery("power", "Power", "mdi:power", cfg.topicPower, "power");
-    if (cfg.publishHeatingActive) publishBinarySensorDiscovery("heating_active", "Verwarmt actief", "mdi:fire", cfg.topicHeatingActive, "heat");
-    if (cfg.publishLocked) publishBinarySensorDiscovery("locked", "Vergrendeling", "mdi:lock", cfg.topicLocked, "lock");
-    if (cfg.publishReady) publishBinarySensorDiscovery("ready", "Spa gereed", "mdi:hot-tub", cfg.topicReady);
-    if (cfg.publishRssi) publishSensorDiscovery("wifi_rssi", "WiFi-signaal", "mdi:wifi", cfg.topicRssi, "dBm", "signal_strength", "measurement");
-    if (cfg.publishHeap) publishSensorDiscovery("free_heap", "Vrij geheugen", "mdi:memory", cfg.topicHeap, "B", "data_size", "measurement");
-    if (cfg.publishUptime) publishSensorDiscovery("uptime", "Uptime", "mdi:timer-outline", cfg.topicUptime, "s", "duration", "total_increasing");
-    if (cfg.publishFirmware) publishSensorDiscovery("firmware", "Firmwareversie", "mdi:chip", cfg.topicFirmware);
-    if (cfg.publishIp) publishSensorDiscovery("ip_address", "IP-adres", "mdi:ip-network", cfg.topicIp);
-
-    if (cfg.publishMaintenance) {
-      publishSensorDiscovery("maintenance_status", "Onderhoudsstatus", "mdi:tools", cfg.topicMaintenance + "/status");
-      publishSensorDiscovery("filter_replace_days", "Filter vervangen over", "mdi:filter", cfg.topicMaintenance + "/filter_replace/days_remaining", "d");
-      publishBinarySensorDiscovery("filter_replace_due", "Filter vervangen nodig", "mdi:filter-alert", cfg.topicMaintenance + "/filter_replace/due", "problem");
-      publishSensorDiscovery("filter_clean_days", "Filter schoonmaken over", "mdi:filter-check", cfg.topicMaintenance + "/filter_clean/days_remaining", "d");
-      publishBinarySensorDiscovery("filter_clean_due", "Filter schoonmaken nodig", "mdi:filter-alert", cfg.topicMaintenance + "/filter_clean/due", "problem");
-      publishSensorDiscovery("chlorine_days", "Chloor toevoegen over", "mdi:water-plus", cfg.topicMaintenance + "/chlorine/days_remaining", "d");
-      publishBinarySensorDiscovery("chlorine_due", "Chloor toevoegen nodig", "mdi:alert-circle", cfg.topicMaintenance + "/chlorine/due", "problem");
-    }
-
     Serial.println("Home Assistant discovery gepubliceerd");
+  }
+
+  String makeConfigKey() {
+    const auto& cfg = settingsManager.mqtt();
+
+    return
+      String(cfg.enabled ? "1" : "0") + "|" +
+      cfg.host + "|" +
+      String(cfg.port) + "|" +
+      cfg.username + "|" +
+      cfg.clientId + "|" +
+      cfg.baseTopic;
   }
 
   void applyBrokerSettings() {
@@ -333,8 +275,6 @@ void MqttManager::begin() {
   connected_ = false;
   lastReconnectAttempt_ = 0;
   lastPublishAt_ = 0;
-  lastErrorCode_ = 0;
-  reconnectCount_ = 0;
   spa.mqttOnline = false;
 
   mqttClient.setBufferSize(1024);
@@ -351,7 +291,7 @@ void MqttManager::begin() {
     );
   });
 
-  activeSettingsRevision = settingsManager.revision();
+  activeConfigKey = makeConfigKey();
   applyBrokerSettings();
 
   const auto& cfg = settingsManager.mqtt();
@@ -371,10 +311,10 @@ void MqttManager::begin() {
 
 void MqttManager::loop() {
   const auto& cfg = settingsManager.mqtt();
-  const uint32_t currentSettingsRevision = settingsManager.revision();
+  const String currentConfigKey = makeConfigKey();
 
-  if (currentSettingsRevision != activeSettingsRevision) {
-    activeSettingsRevision = currentSettingsRevision;
+  if (currentConfigKey != activeConfigKey) {
+    activeConfigKey = currentConfigKey;
 
     if (mqttClient.connected()) {
       mqttClient.disconnect();
@@ -445,14 +385,6 @@ bool MqttManager::isConnected() const {
   return connected_;
 }
 
-int MqttManager::lastErrorCode() const {
-  return lastErrorCode_;
-}
-
-uint32_t MqttManager::reconnectCount() const {
-  return reconnectCount_;
-}
-
 void MqttManager::connect() {
   const auto& cfg = settingsManager.mqtt();
 
@@ -492,17 +424,15 @@ void MqttManager::connect() {
   }
 
   if (!connected) {
-    lastErrorCode_ = mqttClient.state();
-    reconnectCount_++;
-    const String message = String("MQTT verbinden mislukt, status: ") + lastErrorCode_;
-    Serial.println(message);
-    eventLog.warning(message);
+    Serial.print(
+      "MQTT verbinden mislukt, status: "
+    );
+    Serial.println(mqttClient.state());
     return;
   }
 
   connected_ = true;
   spa.mqttOnline = true;
-  lastErrorCode_ = 0;
 
   mqttClient.subscribe(
     topic("command/heater").c_str()
@@ -525,44 +455,52 @@ void MqttManager::connect() {
   publishState();
 
   Serial.println("MQTT verbonden");
-  eventLog.info("MQTT verbonden");
 }
 
 void MqttManager::publishState() {
-  if (!mqttClient.connected()) return;
-  const auto& cfg=settingsManager.mqtt();
-  auto pub=[&](bool enabled,const String& suffix,const String& payload){if(enabled){String clean=suffix;clean.trim();if(!clean.isEmpty())publishRetained(topic(clean),payload);}};
-  pub(cfg.publishTemperature,cfg.topicTemperature,String(spa.temperature));
-  pub(cfg.publishTarget,cfg.topicTarget,String(spa.targetTemperature));
-  pub(cfg.publishPower,cfg.topicPower,spa.power?"ON":"OFF");
-  pub(cfg.publishHeater,cfg.topicHeater,spa.heater?"ON":"OFF");
-  pub(cfg.publishHeatingActive,cfg.topicHeatingActive,spa.heaterActive?"ON":"OFF");
-  pub(cfg.publishFilter,cfg.topicFilter,spa.filter?"ON":"OFF");
-  pub(cfg.publishBubbles,cfg.topicBubbles,spa.bubbles?"ON":"OFF");
-  pub(cfg.publishJets,cfg.topicJets,spa.jets?"ON":"OFF");
-  pub(cfg.publishLocked,cfg.topicLocked,spa.locked?"ON":"OFF");
-  pub(cfg.publishConnected,cfg.topicConnected,spa.connected?"ON":"OFF");
-  const bool ready=spa.power && spa.connected && spa.dataValid && spa.temperature>=spa.targetTemperature;
-  pub(cfg.publishReady,cfg.topicReady,ready?"ON":"OFF");
-  pub(cfg.publishRssi,cfg.topicRssi,String(WiFi.RSSI()));
-  pub(cfg.publishHeap,cfg.topicHeap,String(ESP.getFreeHeap()));
-  pub(cfg.publishUptime,cfg.topicUptime,spa.uptime());
-  pub(cfg.publishFirmware,cfg.topicFirmware,"3.2.0");
-  pub(cfg.publishIp,cfg.topicIp,WiFi.localIP().toString());
-  pub(cfg.publishJson,cfg.topicJson,spa.toJson());
-  if(cfg.publishMaintenance){
-    String root=cfg.topicMaintenance;root.trim();while(root.endsWith("/"))root.remove(root.length()-1);if(root.isEmpty())root="maintenance";
-    auto pubItem=[&](const String& name,const MaintenanceItem& item){
-      publishRetained(topic(root+"/"+name+"/due"),maintenanceManager.due(item)?"ON":"OFF");
-      publishRetained(topic(root+"/"+name+"/days_remaining"),String(maintenanceManager.daysRemaining(item)));
-      publishRetained(topic(root+"/"+name+"/last_date"),maintenanceManager.isoDate(item.lastDone));
-      publishRetained(topic(root+"/"+name+"/next_date"),maintenanceManager.nextDate(item));
-    };
-    pubItem("filter_replace",maintenanceManager.filterReplace());
-    pubItem("filter_clean",maintenanceManager.filterClean());
-    pubItem("chlorine",maintenanceManager.chlorine());
-    publishRetained(topic(root+"/status"),maintenanceManager.overallStatus());
+  if (!mqttClient.connected()) {
+    return;
   }
+
+  publishRetained(
+    topic("temperature"),
+    String(spa.temperature)
+  );
+
+  publishRetained(
+    topic("target/state"),
+    String(spa.targetTemperature)
+  );
+
+  publishRetained(
+    topic("heater/state"),
+    spa.heater ? "ON" : "OFF"
+  );
+
+  publishRetained(
+    topic("filter/state"),
+    spa.filter ? "ON" : "OFF"
+  );
+
+  publishRetained(
+    topic("bubbles/state"),
+    spa.bubbles ? "ON" : "OFF"
+  );
+
+  publishRetained(
+    topic("jets/state"),
+    spa.jets ? "ON" : "OFF"
+  );
+
+  publishRetained(
+    topic("spa/connected"),
+    spa.connected ? "ON" : "OFF"
+  );
+
+  publishRetained(
+    topic("state"),
+    spa.toJson()
+  );
 }
 
 void MqttManager::publishAvailability(
@@ -584,8 +522,8 @@ void MqttManager::handleMessage(
   unsigned int length
 ) {
   const String commandTopic = receivedTopic;
-  const String value = payloadToString(payload, length);
-
+  const String value =
+    payloadToString(payload, length);
 
   if (
     commandTopic ==

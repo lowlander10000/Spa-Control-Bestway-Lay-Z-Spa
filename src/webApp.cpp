@@ -10,7 +10,6 @@
 #include "eventLog.h"
 #include "mqttManager.h"
 #include "configPreserver.h"
-#include "maintenanceManager.h"
 
 #include <ESP8266WebServer.h>
 #include <WebSocketsServer.h>
@@ -22,286 +21,11 @@ ESP8266WebServer server(80);
 WebSocketsServer webSocket(81);
 
 unsigned long lastBroadcast = 0;
-uint32_t minimumObservedHeap = UINT32_MAX;
 
 bool otaUploadSucceeded = false;
 bool otaFilesystemUpload = false;
 bool otaRestartPending = false;
 unsigned long otaRestartAt = 0;
-bool filesystemUpdateInProgress = false;
-
-String escapeJson(String value);
-
-namespace {
-
-constexpr size_t BACKUP_JSON_CAPACITY = 4096;
-constexpr size_t GENERIC_JSON_CAPACITY = 4096;
-
-char lastOtaError[192] = "";
-
-void setDebugMessage(char* target, size_t targetSize, const String& message, bool logError = true) {
-  const String clean = message.substring(0, targetSize - 1);
-  strncpy(target, clean.c_str(), targetSize - 1);
-  target[targetSize - 1] = '\0';
-  Serial.println(clean);
-  if (logError) eventLog.error(clean);
-}
-
-void clearDebugMessage(char* target, size_t targetSize) {
-  if (targetSize > 0) target[0] = '\0';
-}
-
-bool validateJsonFile(const String& path, DynamicJsonDocument& document) {
-  document.clear();
-  File file = LittleFS.open(path, "r");
-  if (!file) return false;
-  const DeserializationError error = deserializeJson(document, file);
-  file.close();
-  return !error && !document.overflowed();
-}
-
-bool copyFileSafely(const String& sourcePath, const String& destinationPath) {
-  File source = LittleFS.open(sourcePath, "r");
-  if (!source) return false;
-
-  const String tempPath = destinationPath + ".tmp";
-  LittleFS.remove(tempPath);
-  File destination = LittleFS.open(tempPath, "w");
-  if (!destination) {
-    source.close();
-    return false;
-  }
-
-  uint8_t buffer[256];
-  size_t totalWritten = 0;
-  while (source.available()) {
-    const size_t bytesRead = source.read(buffer, sizeof(buffer));
-    if (bytesRead == 0) break;
-    const size_t bytesWritten = destination.write(buffer, bytesRead);
-    if (bytesWritten != bytesRead) {
-      source.close();
-      destination.close();
-      LittleFS.remove(tempPath);
-      return false;
-    }
-    totalWritten += bytesWritten;
-    yield();
-  }
-  source.close();
-  destination.flush();
-  destination.close();
-
-  if (totalWritten == 0) {
-    LittleFS.remove(tempPath);
-    return false;
-  }
-
-  LittleFS.remove(destinationPath);
-  if (!LittleFS.rename(tempPath, destinationPath)) {
-    LittleFS.remove(tempPath);
-    return false;
-  }
-  return true;
-}
-
-bool writeJsonFileAtomically(const char* path, const JsonDocument& document) {
-  if (document.overflowed()) {
-    Serial.printf("JSON-opslag geweigerd: document overflow voor %s\n", path);
-    return false;
-  }
-
-  const size_t measuredSize = measureJson(document);
-  if (measuredSize == 0 || measuredSize > GENERIC_JSON_CAPACITY) {
-    Serial.printf("JSON-opslag geweigerd: ongeldige grootte %u voor %s\n",
-                  static_cast<unsigned>(measuredSize), path);
-    return false;
-  }
-
-  const String primaryPath(path);
-  const String newPath = primaryPath + ".new";
-  const String backupPath = primaryPath + ".bak";
-  LittleFS.remove(newPath);
-
-  File pending = LittleFS.open(newPath, "w");
-  if (!pending) {
-    Serial.printf("JSON-opslag: %s kon niet worden geopend\n", newPath.c_str());
-    return false;
-  }
-
-  const size_t written = serializeJson(document, pending);
-  pending.flush();
-  pending.close();
-  if (written != measuredSize) {
-    Serial.printf("JSON-opslag: slechts %u van %u bytes geschreven naar %s\n",
-                  static_cast<unsigned>(written),
-                  static_cast<unsigned>(measuredSize),
-                  newPath.c_str());
-    LittleFS.remove(newPath);
-    return false;
-  }
-
-  // Valideer het tijdelijke bestand. De buffer bestaat alleen in dit blok.
-  {
-    DynamicJsonDocument check(GENERIC_JSON_CAPACITY);
-    if (!validateJsonFile(newPath, check)) {
-      Serial.printf("JSON-opslag: nieuw bestand %s is ongeldig\n", newPath.c_str());
-      LittleFS.remove(newPath);
-      return false;
-    }
-  }
-
-  // Bewaar uitsluitend een aantoonbaar geldig primair bestand.
-  if (LittleFS.exists(primaryPath)) {
-    bool currentValid = false;
-    {
-      DynamicJsonDocument check(GENERIC_JSON_CAPACITY);
-      currentValid = validateJsonFile(primaryPath, check);
-    }
-    if (currentValid && !copyFileSafely(primaryPath, backupPath)) {
-      Serial.printf("JSON-opslag: waarschuwing, back-up %s kon niet worden bijgewerkt\n",
-                    backupPath.c_str());
-    }
-  }
-
-  LittleFS.remove(primaryPath);
-  if (!LittleFS.rename(newPath, primaryPath)) {
-    Serial.printf("JSON-opslag: hernoemen van %s naar %s mislukt\n",
-                  newPath.c_str(), primaryPath.c_str());
-    LittleFS.remove(newPath);
-    if (LittleFS.exists(backupPath)) copyFileSafely(backupPath, primaryPath);
-    return false;
-  }
-
-  bool finalValid = false;
-  {
-    DynamicJsonDocument check(GENERIC_JSON_CAPACITY);
-    finalValid = validateJsonFile(primaryPath, check);
-  }
-  if (!finalValid) {
-    Serial.printf("JSON-opslag: eindcontrole van %s mislukt; rollback wordt geprobeerd\n",
-                  primaryPath.c_str());
-    LittleFS.remove(primaryPath);
-    if (LittleFS.exists(backupPath)) copyFileSafely(backupPath, primaryPath);
-    return false;
-  }
-  return true;
-}
-
-
-bool validateJsonSyntaxLowMemory(const String& content) {
-  StaticJsonDocument<32> filter;
-  filter["__spa_probe__"] = true;
-  StaticJsonDocument<64> probe;
-  const DeserializationError error = deserializeJson(
-    probe,
-    content,
-    DeserializationOption::Filter(filter)
-  );
-  return !error && probe.is<JsonObject>();
-}
-
-bool writeRawJsonFileAtomically(const char* path, const String& content) {
-  if (content.length() < 2 || content.length() > 16384 || !validateJsonSyntaxLowMemory(content)) {
-    Serial.printf("Back-up herstel geweigerd: ongeldige JSON voor %s (%u bytes)\n",
-                  path, static_cast<unsigned>(content.length()));
-    return false;
-  }
-
-  const String primaryPath(path);
-  const String newPath = primaryPath + ".new";
-  const String backupPath = primaryPath + ".bak";
-  LittleFS.remove(newPath);
-
-  File pending = LittleFS.open(newPath, "w");
-  if (!pending) {
-    Serial.printf("Back-up herstel: %s kon niet worden geopend\n", newPath.c_str());
-    return false;
-  }
-
-  const size_t written = pending.print(content);
-  pending.flush();
-  pending.close();
-  if (written != content.length()) {
-    Serial.printf("Back-up herstel: slechts %u van %u bytes geschreven naar %s\n",
-                  static_cast<unsigned>(written),
-                  static_cast<unsigned>(content.length()),
-                  newPath.c_str());
-    LittleFS.remove(newPath);
-    return false;
-  }
-
-  File verify = LittleFS.open(newPath, "r");
-  const size_t verifiedSize = verify ? verify.size() : 0;
-  if (verify) verify.close();
-  if (verifiedSize != content.length()) {
-    Serial.printf("Back-up herstel: groottecontrole mislukt voor %s\n", newPath.c_str());
-    LittleFS.remove(newPath);
-    return false;
-  }
-
-  if (LittleFS.exists(primaryPath) && !copyFileSafely(primaryPath, backupPath)) {
-    Serial.printf("Back-up herstel: waarschuwing, bestaand bestand %s kon niet worden geback-upt\n",
-                  primaryPath.c_str());
-  }
-
-  LittleFS.remove(primaryPath);
-  if (!LittleFS.rename(newPath, primaryPath)) {
-    Serial.printf("Back-up herstel: hernoemen van %s naar %s mislukt\n",
-                  newPath.c_str(), primaryPath.c_str());
-    LittleFS.remove(newPath);
-    if (LittleFS.exists(backupPath)) copyFileSafely(backupPath, primaryPath);
-    return false;
-  }
-  return true;
-}
-
-const char* backupFilePath(const String& name) {
-  if (name == "settings") return "/settings.json";
-  if (name == "hardware") return "/bestway_hwcfg.json";
-  if (name == "maintenance") return "/maintenance.json";
-  return nullptr;
-}
-
-void handleBackupFileGet() {
-  const char* path = backupFilePath(server.arg("name"));
-  if (!path) { server.send(400, "application/json", "{\"ok\":false,\"error\":\"Onbekend back-uponderdeel\"}"); return; }
-  File file = LittleFS.open(path, "r");
-  if (!file) { server.send(404, "application/json", "{\"ok\":false,\"error\":\"Bestand ontbreekt\"}"); return; }
-  server.streamFile(file, "application/json");
-  file.close();
-}
-
-void handleBackupFilePost() {
-  const String name = server.arg("name");
-  const char* path = backupFilePath(name);
-  if (!path || !server.hasArg("plain")) {
-    server.send(400, "application/json", "{\"ok\":false,\"error\":\"Ongeldige herstelopdracht\"}");
-    return;
-  }
-
-  String content = server.arg("plain");
-
-  // Een lege MQTT-wachtwoordwaarde uit een geëxporteerde back-up mag het
-  // huidige wachtwoord niet wissen. WiFi-instellingen zitten niet in deze
-  // back-up en worden door deze route nooit gewijzigd.
-  if (name == "settings" && settingsManager.mqtt().password.length() > 0) {
-    const String escapedPassword = escapeJson(settingsManager.mqtt().password);
-    content.replace("\"password\":\"\"", "\"password\":\"" + escapedPassword + "\"");
-    content.replace("\"password\": \"\"", "\"password\": \"" + escapedPassword + "\"");
-  }
-
-  if (!validateJsonSyntaxLowMemory(content)) {
-    server.send(400, "application/json", "{\"ok\":false,\"error\":\"Ongeldige JSON\"}");
-    return;
-  }
-  if (!writeRawJsonFileAtomically(path, content)) {
-    server.send(500, "application/json", "{\"ok\":false,\"error\":\"Herstellen mislukt\"}");
-    return;
-  }
-  server.send(200, "application/json", "{\"ok\":true}");
-}
-
-}
 
 String escapeJson(String value) {
   value.replace("\\", "\\\\");
@@ -552,60 +276,16 @@ void handleWifiStatus() {
 }
 
 
-const char* updateErrorText(uint8_t error) {
-  switch (error) {
-    case UPDATE_ERROR_OK: return "Geen fout";
-    case UPDATE_ERROR_WRITE: return "Flash schrijven mislukt";
-    case UPDATE_ERROR_ERASE: return "Flash wissen mislukt";
-    case UPDATE_ERROR_READ: return "Flash lezen mislukt";
-    case UPDATE_ERROR_SPACE: return "Onvoldoende ruimte in updatepartitie";
-    case UPDATE_ERROR_SIZE: return "Ongeldige updategrootte";
-    case UPDATE_ERROR_STREAM: return "Uploadstream onderbroken";
-    case UPDATE_ERROR_MD5: return "MD5-controle mislukt";
-    case UPDATE_ERROR_FLASH_CONFIG: return "Flashconfiguratie komt niet overeen";
-    case UPDATE_ERROR_NEW_FLASH_CONFIG: return "Nieuwe flashconfiguratie is ongeldig";
-    case UPDATE_ERROR_MAGIC_BYTE: return "Ongeldig firmware- of filesystembestand";
-    case UPDATE_ERROR_BOOTSTRAP: return "Bootstrap-update mislukt";
-    case UPDATE_ERROR_SIGN: return "Ondertekeningscontrole mislukt";
-    default: return "Onbekende updatefout";
-  }
-}
-
-String updateErrorJson(const char* typeName) {
-  const uint8_t code = Update.getError();
-  String json = "{\"ok\":false,\"error\":\"";
-  json += typeName;
-  json += "-update mislukt: ";
-  json += updateErrorText(code);
-  json += " (code ";
-  json += String(code);
-  json += ")\",\"code\":";
-  json += String(code);
-  json += "}";
-  return json;
-}
-
 void finishOtaResponse(const char* typeName) {
   if (Update.hasError() || !otaUploadSucceeded) {
-    const String error = updateErrorJson(typeName);
-    Serial.print(typeName);
-    Serial.print(" eindstatus fout: ");
-    Serial.println(error);
-
     if (otaFilesystemUpload) {
-      const bool mounted = LittleFS.begin();
-      Serial.println(mounted ? "LittleFS opnieuw gekoppeld na fout"
-                             : "LittleFS opnieuw koppelen na fout MISLUKT");
-      filesystemUpdateInProgress = false;
+      LittleFS.begin();
     }
-
-    setDebugMessage(lastOtaError, sizeof(lastOtaError), String(typeName) + ": " + error);
+    String error = String("{\"ok\":false,\"error\":\"") + typeName + "-update mislukt\"}";
     server.send(500, "application/json", error);
     return;
   }
 
-  clearDebugMessage(lastOtaError, sizeof(lastOtaError));
-  eventLog.info(String(typeName) + "-update voltooid");
   String message = String("{\"ok\":true,\"message\":\"") + typeName +
                    "-update voltooid. ESP start opnieuw op.\"}";
   server.send(200, "application/json", message);
@@ -614,174 +294,74 @@ void finishOtaResponse(const char* typeName) {
 }
 
 void processOtaUpload(bool filesystem) {
-  static size_t receivedBytes = 0;
-  static size_t lastReportedBytes = 0;
-  static uint32_t uploadStartedAt = 0;
   HTTPUpload& upload = server.upload();
 
   if (upload.status == UPLOAD_FILE_START) {
     otaUploadSucceeded = false;
     otaFilesystemUpload = filesystem;
-    receivedBytes = 0;
-    lastReportedBytes = 0;
-    uploadStartedAt = millis();
 
-    Serial.println();
-    Serial.println("========== OTA UPLOAD START ==========");
-    Serial.print("Type: ");
-    Serial.println(filesystem ? "LittleFS" : "Firmware");
-    Serial.print("Bestand: ");
+    Serial.print(filesystem ? "LittleFS upload gestart: " : "Firmware upload gestart: ");
     Serial.println(upload.filename);
-    Serial.print("Vrij heapgeheugen: ");
-    Serial.println(ESP.getFreeHeap());
 
     bool started = false;
     if (filesystem) {
+      // U_FS mag niet met grootte 0 worden gestart. Gebruik de volledige
+      // LittleFS-partitiegrootte als maximale OTA-schrijfomvang.
       FSInfo fsInfo;
-      if (LittleFS.info(fsInfo)) {
-        Serial.print("LittleFS logisch totaal: ");
-        Serial.println(fsInfo.totalBytes);
-        Serial.print("LittleFS logisch gebruikt: ");
-        Serial.println(fsInfo.usedBytes);
-      } else {
-        Serial.println("Waarschuwing: LittleFS.info() mislukt");
+      const bool fsInfoOk = LittleFS.info(fsInfo);
+      const size_t filesystemSize = fsInfoOk ? fsInfo.totalBytes : 0;
+      const bool configBackupOk =
+        fsInfoOk && filesystemSize > 0 &&
+        configPreserverBackupForFilesystemUpdate();
+
+      if (configBackupOk) LittleFS.end();
+      started = configBackupOk && Update.begin(filesystemSize, U_FS);
+
+      if (!fsInfoOk || filesystemSize == 0) {
+        Serial.println("LittleFS partitiegrootte kon niet worden bepaald");
+      } else if (!configBackupOk) {
+        Serial.println("LittleFS-update afgebroken: configuratieback-up mislukt");
       }
-
-      // Diagnostische RC5: geen EEPROM-configuratieback-up. Hiermee sluiten
-      // we de backupstap uit als oorzaak van de vastlopende upload.
-      filesystemUpdateInProgress = true;
-      LittleFS.end();
-      delay(50);
-
-      // HTTPUpload.totalSize is bij UPLOAD_FILE_START nog 0 en groeit pas
-      // terwijl de upload binnenkomt. Gebruik daarom de beschikbare
-      // LittleFS-partitiegrootte als bovengrens voor de U_FS-update.
-      FSInfo updateFsInfo;
-      size_t filesystemCapacity = 0;
-      if (LittleFS.begin() && LittleFS.info(updateFsInfo)) {
-        filesystemCapacity = updateFsInfo.totalBytes;
-        LittleFS.end();
-      }
-
-      Serial.print("HTTP multipart contentLength: ");
-      Serial.println(upload.contentLength);
-      Serial.print("LittleFS updatecapaciteit: ");
-      Serial.println(filesystemCapacity);
-
-      if (filesystemCapacity > 0) {
-        started = Update.begin(filesystemCapacity, U_FS);
-      } else {
-        Serial.println("Update.begin niet gestart: LittleFS-capaciteit onbekend");
-      }
-      Serial.println("Configuratieback-up voor deze test: UITGESCHAKELD");
     } else {
       const uint32_t maxSketchSpace =
         (ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000;
-      Serial.print("Maximale firmwareruimte: ");
-      Serial.println(maxSketchSpace);
       started = Update.begin(maxSketchSpace, U_FLASH);
     }
 
-    Serial.print("Update.begin: ");
-    Serial.println(started ? "OK" : "MISLUKT");
-
     if (!started) {
       Update.printError(Serial);
-      Serial.print("Update error code: ");
-      Serial.println(Update.getError());
-      Serial.print("Update error tekst: ");
-      Serial.println(updateErrorText(Update.getError()));
-      if (filesystem) {
-        const bool mounted = LittleFS.begin();
-        Serial.println(mounted ? "LittleFS opnieuw gekoppeld"
-                               : "LittleFS opnieuw koppelen MISLUKT");
-        filesystemUpdateInProgress = false;
-      }
+      if (filesystem) LittleFS.begin();
       return;
     }
   }
 
   if (upload.status == UPLOAD_FILE_WRITE) {
-    if (Update.hasError()) {
-      Serial.print("WRITE overgeslagen wegens eerdere fout, code ");
-      Serial.println(Update.getError());
-      return;
-    }
-
+    if (Update.hasError()) return;
     const size_t written = Update.write(upload.buf, upload.currentSize);
-    receivedBytes += written;
-
-    if (written != upload.currentSize) {
-      Serial.print("Korte write: aangeboden=");
-      Serial.print(upload.currentSize);
-      Serial.print(", geschreven=");
-      Serial.println(written);
-      Update.printError(Serial);
-      Serial.print("Update error code: ");
-      Serial.println(Update.getError());
-      Serial.print("Update error tekst: ");
-      Serial.println(updateErrorText(Update.getError()));
-    }
-
-    if (receivedBytes - lastReportedBytes >= 65536 || written != upload.currentSize) {
-      lastReportedBytes = receivedBytes;
-      Serial.print("Ontvangen/geschreven: ");
-      Serial.print(receivedBytes);
-      Serial.print(" bytes, chunk: ");
-      Serial.print(upload.currentSize);
-      Serial.print(", heap: ");
-      Serial.println(ESP.getFreeHeap());
-    }
+    if (written != upload.currentSize) Update.printError(Serial);
   }
 
   if (upload.status == UPLOAD_FILE_END) {
-    Serial.print("UPLOAD_FILE_END totalSize: ");
-    Serial.println(upload.totalSize);
-    Serial.print("Zelf getelde bytes: ");
-    Serial.println(receivedBytes);
-    Serial.print("Duur ms: ");
-    Serial.println(millis() - uploadStartedAt);
-
     if (Update.end(true)) {
       otaUploadSucceeded = true;
-      Serial.println(filesystem ? "LittleFS Update.end(true): OK"
-                                : "Firmware Update.end(true): OK");
+      Serial.print(filesystem ? "LittleFS upload voltooid: " : "Firmware upload voltooid: ");
+      Serial.print(upload.totalSize);
+      Serial.println(" bytes");
     } else {
-      Serial.println("Update.end(true): MISLUKT");
       Update.printError(Serial);
-      Serial.print("Update error code: ");
-      Serial.println(Update.getError());
-      Serial.print("Update error tekst: ");
-      Serial.println(updateErrorText(Update.getError()));
-      if (filesystem) {
-        const bool mounted = LittleFS.begin();
-        Serial.println(mounted ? "LittleFS opnieuw gekoppeld na end-fout"
-                               : "LittleFS opnieuw koppelen na end-fout MISLUKT");
-        filesystemUpdateInProgress = false;
-      }
+      if (filesystem) LittleFS.begin();
     }
-    Serial.println("=========== OTA UPLOAD END ===========");
   }
 
   if (upload.status == UPLOAD_FILE_ABORTED) {
-    Serial.println("UPLOAD_FILE_ABORTED ontvangen");
-    Serial.print("Bytes voor afbreken: ");
-    Serial.println(receivedBytes);
-    Serial.print("Update error code: ");
-    Serial.println(Update.getError());
     Update.end();
     otaUploadSucceeded = false;
-    if (filesystem) {
-      const bool mounted = LittleFS.begin();
-      Serial.println(mounted ? "LittleFS opnieuw gekoppeld na afbreken"
-                             : "LittleFS opnieuw koppelen na afbreken MISLUKT");
-      filesystemUpdateInProgress = false;
-    }
+    if (filesystem) LittleFS.begin();
+    Serial.println(filesystem ? "LittleFS upload afgebroken" : "Firmware upload afgebroken");
   }
 
   yield();
 }
-
 
 void handleFirmwareUploadFinished() { finishOtaResponse("Firmware"); }
 void handleFirmwareUploadData() { processOtaUpload(false); }
@@ -792,9 +372,7 @@ void handleFilesystemUploadData() { processOtaUpload(true); }
 void handleMqttSettingsGet() {
   const auto& cfg = settingsManager.mqtt();
 
-  String json;
-  json.reserve(1800);
-  json = "{";
+  String json = "{";
   json += "\"enabled\":" + String(cfg.enabled ? "true" : "false");
   json += ",\"host\":\"" + escapeJson(cfg.host) + "\"";
   json += ",\"port\":" + String(cfg.port);
@@ -803,42 +381,6 @@ void handleMqttSettingsGet() {
   json += ",\"baseTopic\":\"" + escapeJson(cfg.baseTopic) + "\"";
   json += ",\"homeAssistantDiscovery\":";
   json += cfg.homeAssistantDiscovery ? "true" : "false";
-  json += ",\"publishTemperature\":" + String(cfg.publishTemperature ? "true" : "false");
-  json += ",\"publishTarget\":" + String(cfg.publishTarget ? "true" : "false");
-  json += ",\"publishPower\":" + String(cfg.publishPower ? "true" : "false");
-  json += ",\"publishHeater\":" + String(cfg.publishHeater ? "true" : "false");
-  json += ",\"publishHeatingActive\":" + String(cfg.publishHeatingActive ? "true" : "false");
-  json += ",\"publishFilter\":" + String(cfg.publishFilter ? "true" : "false");
-  json += ",\"publishBubbles\":" + String(cfg.publishBubbles ? "true" : "false");
-  json += ",\"publishJets\":" + String(cfg.publishJets ? "true" : "false");
-  json += ",\"publishLocked\":" + String(cfg.publishLocked ? "true" : "false");
-  json += ",\"publishConnected\":" + String(cfg.publishConnected ? "true" : "false");
-  json += ",\"publishReady\":" + String(cfg.publishReady ? "true" : "false");
-  json += ",\"publishRssi\":" + String(cfg.publishRssi ? "true" : "false");
-  json += ",\"publishHeap\":" + String(cfg.publishHeap ? "true" : "false");
-  json += ",\"publishUptime\":" + String(cfg.publishUptime ? "true" : "false");
-  json += ",\"publishFirmware\":" + String(cfg.publishFirmware ? "true" : "false");
-  json += ",\"publishIp\":" + String(cfg.publishIp ? "true" : "false");
-  json += ",\"publishJson\":" + String(cfg.publishJson ? "true" : "false");
-  json += ",\"publishMaintenance\":" + String(cfg.publishMaintenance ? "true" : "false");
-  json += ",\"topicTemperature\":\"" + escapeJson(cfg.topicTemperature) + "\"";
-  json += ",\"topicTarget\":\"" + escapeJson(cfg.topicTarget) + "\"";
-  json += ",\"topicPower\":\"" + escapeJson(cfg.topicPower) + "\"";
-  json += ",\"topicHeater\":\"" + escapeJson(cfg.topicHeater) + "\"";
-  json += ",\"topicHeatingActive\":\"" + escapeJson(cfg.topicHeatingActive) + "\"";
-  json += ",\"topicFilter\":\"" + escapeJson(cfg.topicFilter) + "\"";
-  json += ",\"topicBubbles\":\"" + escapeJson(cfg.topicBubbles) + "\"";
-  json += ",\"topicJets\":\"" + escapeJson(cfg.topicJets) + "\"";
-  json += ",\"topicLocked\":\"" + escapeJson(cfg.topicLocked) + "\"";
-  json += ",\"topicConnected\":\"" + escapeJson(cfg.topicConnected) + "\"";
-  json += ",\"topicReady\":\"" + escapeJson(cfg.topicReady) + "\"";
-  json += ",\"topicRssi\":\"" + escapeJson(cfg.topicRssi) + "\"";
-  json += ",\"topicHeap\":\"" + escapeJson(cfg.topicHeap) + "\"";
-  json += ",\"topicUptime\":\"" + escapeJson(cfg.topicUptime) + "\"";
-  json += ",\"topicFirmware\":\"" + escapeJson(cfg.topicFirmware) + "\"";
-  json += ",\"topicIp\":\"" + escapeJson(cfg.topicIp) + "\"";
-  json += ",\"topicJson\":\"" + escapeJson(cfg.topicJson) + "\"";
-  json += ",\"topicMaintenance\":\"" + escapeJson(cfg.topicMaintenance) + "\"";
   json += "}";
 
   server.send(200, "application/json", json);
@@ -864,73 +406,19 @@ void handleMqttSettingsPost() {
   if (server.hasArg("homeAssistantDiscovery")) {
     cfg.homeAssistantDiscovery = server.arg("homeAssistantDiscovery") == "true";
   }
-  if (server.hasArg("publishTemperature")) cfg.publishTemperature = server.arg("publishTemperature") == "true";
-  if (server.hasArg("publishTarget")) cfg.publishTarget = server.arg("publishTarget") == "true";
-  if (server.hasArg("publishPower")) cfg.publishPower = server.arg("publishPower") == "true";
-  if (server.hasArg("publishHeater")) cfg.publishHeater = server.arg("publishHeater") == "true";
-  if (server.hasArg("publishHeatingActive")) cfg.publishHeatingActive = server.arg("publishHeatingActive") == "true";
-  if (server.hasArg("publishFilter")) cfg.publishFilter = server.arg("publishFilter") == "true";
-  if (server.hasArg("publishBubbles")) cfg.publishBubbles = server.arg("publishBubbles") == "true";
-  if (server.hasArg("publishJets")) cfg.publishJets = server.arg("publishJets") == "true";
-  if (server.hasArg("publishLocked")) cfg.publishLocked = server.arg("publishLocked") == "true";
-  if (server.hasArg("publishConnected")) cfg.publishConnected = server.arg("publishConnected") == "true";
-  if (server.hasArg("publishReady")) cfg.publishReady = server.arg("publishReady") == "true";
-  if (server.hasArg("publishRssi")) cfg.publishRssi = server.arg("publishRssi") == "true";
-  if (server.hasArg("publishHeap")) cfg.publishHeap = server.arg("publishHeap") == "true";
-  if (server.hasArg("publishUptime")) cfg.publishUptime = server.arg("publishUptime") == "true";
-  if (server.hasArg("publishFirmware")) cfg.publishFirmware = server.arg("publishFirmware") == "true";
-  if (server.hasArg("publishIp")) cfg.publishIp = server.arg("publishIp") == "true";
-  if (server.hasArg("publishJson")) cfg.publishJson = server.arg("publishJson") == "true";
-  if (server.hasArg("publishMaintenance")) cfg.publishMaintenance = server.arg("publishMaintenance") == "true";
-  if (server.hasArg("topicTemperature")) cfg.topicTemperature = server.arg("topicTemperature");
-  if (server.hasArg("topicTarget")) cfg.topicTarget = server.arg("topicTarget");
-  if (server.hasArg("topicPower")) cfg.topicPower = server.arg("topicPower");
-  if (server.hasArg("topicHeater")) cfg.topicHeater = server.arg("topicHeater");
-  if (server.hasArg("topicHeatingActive")) cfg.topicHeatingActive = server.arg("topicHeatingActive");
-  if (server.hasArg("topicFilter")) cfg.topicFilter = server.arg("topicFilter");
-  if (server.hasArg("topicBubbles")) cfg.topicBubbles = server.arg("topicBubbles");
-  if (server.hasArg("topicJets")) cfg.topicJets = server.arg("topicJets");
-  if (server.hasArg("topicLocked")) cfg.topicLocked = server.arg("topicLocked");
-  if (server.hasArg("topicConnected")) cfg.topicConnected = server.arg("topicConnected");
-  if (server.hasArg("topicReady")) cfg.topicReady = server.arg("topicReady");
-  if (server.hasArg("topicRssi")) cfg.topicRssi = server.arg("topicRssi");
-  if (server.hasArg("topicHeap")) cfg.topicHeap = server.arg("topicHeap");
-  if (server.hasArg("topicUptime")) cfg.topicUptime = server.arg("topicUptime");
-  if (server.hasArg("topicFirmware")) cfg.topicFirmware = server.arg("topicFirmware");
-  if (server.hasArg("topicIp")) cfg.topicIp = server.arg("topicIp");
-  if (server.hasArg("topicJson")) cfg.topicJson = server.arg("topicJson");
-  if (server.hasArg("topicMaintenance")) cfg.topicMaintenance = server.arg("topicMaintenance");
 
   if (!settingsManager.save()) {
     server.send(500, "application/json", "{\"ok\":false,\"error\":\"Opslaan mislukt\"}");
     return;
   }
 
-  mqttManager.publishState();
   server.send(200, "application/json", "{\"ok\":true}");
-}
-
-void handleMaintenanceGet() { server.send(200,"application/json",maintenanceManager.toJson()); }
-void handleMaintenancePost() {
-  auto b=[&](const char* key,bool fallback){return server.hasArg(key)?server.arg(key)=="true":fallback;};
-  auto d=[&](const char* key,uint16_t fallback){long v=server.hasArg(key)?server.arg(key).toInt():fallback;return (uint16_t)constrain(v,1,3650);};
-  const auto& fr=maintenanceManager.filterReplace();const auto& fc=maintenanceManager.filterClean();const auto& ch=maintenanceManager.chlorine();
-  bool ok=maintenanceManager.updateSettings(b("filterReplaceEnabled",fr.enabled),d("filterReplaceDays",fr.intervalDays),b("filterCleanEnabled",fc.enabled),d("filterCleanDays",fc.intervalDays),b("chlorineEnabled",ch.enabled),d("chlorineDays",ch.intervalDays));
-  if(ok){mqttManager.publishState();server.send(200,"application/json",maintenanceManager.toJson());}else server.send(500,"application/json","{\"ok\":false}");
-}
-void handleMaintenanceDone() {
-  if(!server.hasArg("item")){server.send(400,"application/json","{\"ok\":false,\"error\":\"Onderdeel ontbreekt\"}");return;}
-  if(!timeManager.isSynchronized()){server.send(409,"application/json","{\"ok\":false,\"error\":\"Tijd is nog niet gesynchroniseerd\"}");return;}
-  if(!maintenanceManager.markDone(server.arg("item"))){server.send(400,"application/json","{\"ok\":false,\"error\":\"Onbekend onderdeel\"}");return;}
-  mqttManager.publishState();server.send(200,"application/json",maintenanceManager.toJson());
 }
 
 void handleRegionalSettingsGet() {
   const auto& cfg = settingsManager.regional();
 
-  String json;
-  json.reserve(320);
-  json = "{";
+  String json = "{";
   json += "\"language\":\"" + escapeJson(cfg.language) + "\"";
   json += ",\"timeZone\":\"" + escapeJson(cfg.timeZone) + "\"";
   json += ",\"use24HourClock\":";
@@ -978,9 +466,7 @@ void handleRegionalSettingsPost() {
 }
 
 void handleSystemSettingsGet() {
-  String json;
-  json.reserve(320);
-  json = "{";
+  String json = "{";
   json += "\"timeSynchronized\":";
   json += timeManager.isSynchronized() ? "true" : "false";
   json += ",\"date\":\"" + escapeJson(timeManager.formattedDate()) + "\"";
@@ -997,9 +483,7 @@ void handleSettingsGet() {
   const auto& mqtt = settingsManager.mqtt();
   const auto& region = settingsManager.regional();
 
-  String json;
-  json.reserve(700);
-  json = "{";
+  String json = "{";
   json += "\"enabled\":" + String(mqtt.enabled ? "true" : "false");
   json += ",\"host\":\"" + escapeJson(mqtt.host) + "\"";
   json += ",\"port\":" + String(mqtt.port);
@@ -1186,11 +670,6 @@ void handleEnergyPost() {
   if (server.hasArg("pricePerKwh")) cfg.pricePerKwh = server.arg("pricePerKwh").toFloat();
   if (server.hasArg("currency")) cfg.currency = server.arg("currency");
   if (!settingsManager.save()) { server.send(500,"application/json","{\"ok\":false}"); return; }
-  if (server.hasArg("heaterHours") || server.hasArg("filterHours") || server.hasArg("bubblesHours") || server.hasArg("jetsHours")) {
-    if (!energyManager.restoreTotals(server.arg("heaterHours").toDouble(), server.arg("filterHours").toDouble(), server.arg("bubblesHours").toDouble(), server.arg("jetsHours").toDouble())) {
-      server.send(500,"application/json","{\"ok\":false,\"error\":\"Energietellers herstellen mislukt\"}"); return;
-    }
-  }
   eventLog.info("Energie-instellingen gewijzigd");
   server.send(200,"application/json","{\"ok\":true}");
 }
@@ -1210,16 +689,13 @@ void handleDiagnosticsGet() {
   const uint32_t maxBlock = ESP.getMaxFreeBlockSize();
   const uint8_t fragmentation = ESP.getHeapFragmentation();
 
-  String json;
-  json.reserve(768);
-  json = "{";
+  String json = "{";
   json += "\"wifiConnected\":" + String(WiFi.status() == WL_CONNECTED ? "true" : "false");
   json += ",\"mqttConnected\":" + String(mqttManager.isConnected() ? "true" : "false");
   json += ",\"timeSynchronized\":" + String(timeManager.isSynchronized() ? "true" : "false");
   json += ",\"spaConnected\":" + String(spa.connected ? "true" : "false");
   json += ",\"spaDataValid\":" + String(spa.dataValid ? "true" : "false");
   json += ",\"freeHeap\":" + String(freeHeap);
-  json += ",\"minimumObservedHeap\":" + String(minimumObservedHeap == UINT32_MAX ? freeHeap : minimumObservedHeap);
   json += ",\"maxFreeBlock\":" + String(maxBlock);
   json += ",\"heapFragmentation\":" + String(fragmentation);
   json += ",\"flashSize\":" + String(ESP.getFlashChipRealSize());
@@ -1235,9 +711,6 @@ void handleDiagnosticsGet() {
   json += ",\"filesystemTotal\":" + String(fsOk ? fsInfo.totalBytes : 0);
   json += ",\"historyCount\":" + String(historyManager.count());
   json += ",\"scheduleCount\":" + String(schedulerManager.count());
-  json += ",\"otaLastError\":\"" + escapeJson(String(lastOtaError)) + "\"";
-  json += ",\"mqttLastError\":" + String(mqttManager.lastErrorCode());
-  json += ",\"mqttReconnectCount\":" + String(mqttManager.reconnectCount());
   json += "}";
 
   server.send(200, "application/json", json);
@@ -1268,9 +741,6 @@ void handleSelfTest() {
   eventLog.info(overall ? "Zelftest geslaagd" : "Zelftest aandachtspunten gevonden");
   server.send(overall ? 200 : 207, "application/json", json);
 }
-
-
-
 
 void webAppBegin() {
   server.on("/api/wifi/scan", HTTP_GET, handleWifiScan);
@@ -1309,9 +779,6 @@ void webAppBegin() {
   server.on("/api/settings", HTTP_POST, handleSettingsPost);
   server.on("/api/settings/mqtt", HTTP_GET, handleMqttSettingsGet);
   server.on("/api/settings/mqtt", HTTP_POST, handleMqttSettingsPost);
-  server.on("/api/maintenance", HTTP_GET, handleMaintenanceGet);
-  server.on("/api/maintenance", HTTP_POST, handleMaintenancePost);
-  server.on("/api/maintenance/done", HTTP_POST, handleMaintenanceDone);
   server.on("/api/settings/region", HTTP_GET, handleRegionalSettingsGet);
   server.on("/api/settings/region", HTTP_POST, handleRegionalSettingsPost);
   server.on("/api/settings/system", HTTP_GET, handleSystemSettingsGet);
@@ -1330,8 +797,6 @@ void webAppBegin() {
   server.on("/api/logs", HTTP_DELETE, handleLogsDelete);
   server.on("/api/diagnostics", HTTP_GET, handleDiagnosticsGet);
   server.on("/api/selftest", HTTP_POST, handleSelfTest);
-  server.on("/api/backup/file", HTTP_GET, handleBackupFileGet);
-  server.on("/api/backup/file", HTTP_POST, handleBackupFilePost);
 
 
   server.begin();
@@ -1343,26 +808,16 @@ void webAppBegin() {
   Serial.println("WebSocket gestart op poort 81");
 }
 
-bool webAppFilesystemUpdateActive() {
-  return filesystemUpdateInProgress;
-}
-
 void webAppLoop() {
-  const uint32_t currentHeap = ESP.getFreeHeap();
-  if (currentHeap < minimumObservedHeap) minimumObservedHeap = currentHeap;
-
   server.handleClient();
-
-  if (!filesystemUpdateInProgress) {
-    webSocket.loop();
-  }
+  webSocket.loop();
 
   if (otaRestartPending &&
       static_cast<long>(millis() - otaRestartAt) >= 0) {
     ESP.restart();
   }
 
-  if (!filesystemUpdateInProgress && millis() - lastBroadcast > 1000) {
+  if (millis() - lastBroadcast > 1000) {
     lastBroadcast = millis();
     webAppBroadcast();
   }
