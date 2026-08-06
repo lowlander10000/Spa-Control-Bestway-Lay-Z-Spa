@@ -226,7 +226,7 @@ function pressSpaButton(button) {
 }
 
 
-const navDefaults = {dashboard:true,control:true,planner:true,history:true,energy:true,logs:true,settings:true};
+const navDefaults = {dashboard:true,control:true,planner:true,history:true,energy:true,logs:true,maintenance:true,settings:true,info:true};
 const dashboardSectionDefaults = {status:true,currentTemperature:true,targetTemperature:true,weather:true,controls:true,summary:true,insight:true,system:true};
 const dashboardOrderDefaults = ["status","currentTemperature","targetTemperature","weather","controls","summary","insight","system"];
 function getDashboardOrder(){
@@ -370,9 +370,38 @@ function resetDashboardButtonOrder(){
 }
 
 function readLocalConfig(key, defaults){ try{return {...defaults,...JSON.parse(localStorage.getItem(key)||"{}")};}catch(_){return {...defaults};} }
+const navigationOrderDefaults=["dashboard","control","planner","history","energy","logs","maintenance","settings","info"];
+function getNavigationOrder(){
+  try{
+    const stored=JSON.parse(localStorage.getItem("layzspaNavigationOrder")||"[]");
+    const valid=stored.filter(name=>navigationOrderDefaults.includes(name));
+    navigationOrderDefaults.forEach(name=>{if(!valid.includes(name))valid.push(name);});
+    return valid;
+  }catch(_){return [...navigationOrderDefaults];}
+}
+function applyNavigationOrder(){
+  const nav=document.getElementById("bottomNav");
+  if(nav)getNavigationOrder().forEach(name=>{const button=document.getElementById(`nav${name.charAt(0).toUpperCase()+name.slice(1)}`);if(button)nav.appendChild(button);});
+}
+function loadNavigationOrderEditor(){
+  const list=document.getElementById("navigationOrderList");
+  if(!list)return;
+  getNavigationOrder().forEach(name=>{const item=list.querySelector(`[data-nav-order="${name}"]`);if(item)list.appendChild(item);});
+  initializeNavigationOrderDrag();
+}
+function initializeNavigationOrderDrag(){
+  initializePointerSortable(document.getElementById("navigationOrderList"), ".navigation-order-item", ".drag-handle");
+}
+function resetNavigationOrder(){
+  localStorage.removeItem("layzspaNavigationOrder");
+  loadNavigationOrderEditor();
+  applyNavigationOrder();
+  showToast(tr("Standaardvolgorde hersteld"));
+}
 function applyNavigationSettings(){
   const cfg=readLocalConfig("layzspaNavTabs",navDefaults);
   const enabled=localStorage.getItem("layzspaBottomNavEnabled")!=="false";
+  applyNavigationOrder();
   document.getElementById("bottomNav")?.classList.toggle("bottom-nav-disabled",!enabled);
   document.body.classList.toggle("without-bottom-nav",!enabled);
   const toggle=document.getElementById("bottomNavEnabled"); if(toggle) toggle.checked=enabled;
@@ -382,7 +411,10 @@ function applyNavigationSettings(){
 function saveNavigationSettings(){
   const cfg={...navDefaults};
   document.querySelectorAll("[data-nav-setting]").forEach(i=>cfg[i.dataset.navSetting]=i.checked);
+  const list=document.getElementById("navigationOrderList");
+  const order=list?[...list.querySelectorAll("[data-nav-order]")].map(el=>el.dataset.navOrder):getNavigationOrder();
   localStorage.setItem("layzspaNavTabs",JSON.stringify(cfg));
+  localStorage.setItem("layzspaNavigationOrder",JSON.stringify(order));
   localStorage.setItem("layzspaBottomNavEnabled",document.getElementById("bottomNavEnabled")?.checked!==false?"true":"false");
   applyNavigationSettings(); showToast(tr("Navigatie opgeslagen"));
 }
@@ -489,6 +521,7 @@ function showView(viewName) {
     settings: "Instellingen",
     hardware: "Hardware",
     control: "Bedieningspaneel",
+    maintenance: "Onderhoud",
     personalization: "Interface aanpassen",
     info: "Informatie"
   };
@@ -516,6 +549,8 @@ function showView(viewName) {
     render();
   } else if (viewName === "hardware") {
     loadHardwareSettings();
+  } else if (viewName === "maintenance") {
+    loadMaintenance();
   } else if (viewName === "control") {
     // Bedieningspaneel blijft een zuiver bedieningsscherm.
   } else if (viewName === "personalization") {
@@ -524,6 +559,7 @@ function showView(viewName) {
     loadDashboardButtonOrderEditor();
     applyDashboardSections();
     applyNavigationSettings();
+    loadNavigationOrderEditor();
   } else if (viewName === "planner") {
     loadSchedules();
   } else if (viewName === "history") {
@@ -537,6 +573,7 @@ function showView(viewName) {
 
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
+
 
 async function loadWifiStatus() {
   try {
@@ -865,8 +902,8 @@ async function connectSelectedWifi(event) {
 
 async function forgetWifi() {
   const confirmed = confirm(
-    "Weet je zeker dat je de opgeslagen WiFi-instellingen wilt wissen?\n\n" +
-      "De ESP schakelt daarna terug naar de setupmodus."
+    tr("Weet je zeker dat je de opgeslagen WiFi-instellingen wilt wissen?") + "\n\n" +
+      tr("De ESP schakelt daarna terug naar de setupmodus.")
   );
 
   if (!confirmed) {
@@ -890,7 +927,7 @@ async function forgetWifi() {
       );
     }
 
-    showToast("WiFi-instellingen gewist.");
+    showToast(tr("WiFi-instellingen gewist."));
 
     setDot(
       "settingsWifiStatus",
@@ -950,17 +987,17 @@ async function waitForWifiConnection(timeoutMs) {
 
 
 async function restartEsp() {
-  if (!confirm("Weet je zeker dat je de ESP opnieuw wilt opstarten?")) return;
+  if (!confirm(tr("Weet je zeker dat je de ESP opnieuw wilt opstarten?"))) return;
 
   try {
     await fetch("/api/restart", { method: "POST" });
-    showToast("ESP wordt opnieuw opgestart...");
+    showToast(tr("ESP wordt opnieuw opgestart..."));
 
     setTimeout(() => {
       location.reload();
     }, 8000);
   } catch (error) {
-    showToast("Herstart mislukt.", true);
+    showToast(tr("Herstart mislukt."), true);
   }
 }
 
@@ -991,7 +1028,7 @@ function startOtaUpload() {
     }
   };
 
-  xhr.onerror=()=>showToast("Uploadfout.",true);
+  xhr.onerror=()=>showToast(tr("Uploadfout."),true);
 
   const form=new FormData();
   form.append("update",file);
@@ -1003,7 +1040,7 @@ function startOtaUpload() {
 function startFilesystemUpload() {
   const file=document.getElementById("fsOtaFile").files[0];
   if(!file){showToast(tr("Kies eerst littlefs.bin."),true);return;}
-  if(!file.name.toLowerCase().endsWith(".bin")){showToast("Kies een geldig .bin-bestand.",true);return;}
+  if(!file.name.toLowerCase().endsWith(".bin")){showToast(tr("Kies een geldig .bin-bestand."),true);return;}
 
   const xhr=new XMLHttpRequest();
   const progress=document.getElementById("fsOtaProgress");
@@ -1017,6 +1054,8 @@ function startFilesystemUpload() {
   };
 
   xhr.onload=()=>{
+    console.log("LittleFS OTA HTTP status:", xhr.status);
+    console.log("LittleFS OTA response:", xhr.responseText);
     if(xhr.status===200){
       progress.value=100;
       percent.innerText="100%";
@@ -1029,11 +1068,23 @@ function startFilesystemUpload() {
     }
   };
 
-  xhr.onerror=()=>showToast(tr("Uploadfout tijdens LittleFS-update."),true);
+  xhr.onerror=()=>{
+    console.error("LittleFS OTA netwerkfout", {status:xhr.status, response:xhr.responseText});
+    showToast(tr("Uploadfout tijdens LittleFS-update."),true);
+  };
+  xhr.ontimeout=()=>{
+    console.error("LittleFS OTA timeout", {status:xhr.status, response:xhr.responseText});
+    showToast(tr("LittleFS-upload timeout na 180 seconden."),true);
+  };
+  xhr.onabort=()=>{
+    console.warn("LittleFS OTA door browser afgebroken");
+    showToast(tr("LittleFS-upload afgebroken."),true);
+  };
 
   const form=new FormData();
   form.append("update",file);
   xhr.open("POST","/api/ota/filesystem");
+  xhr.timeout=180000;
   xhr.send(form);
 }
 
@@ -1107,270 +1158,33 @@ if ("serviceWorker" in navigator) {
 loadTemperaturePreference();
 connectWebSocket();
 
-async function loadMqttSettings(){try{const r=await fetch("/api/settings/mqtt",{cache:"no-store"});if(!r.ok)throw new Error("MQTT-instellingen niet beschikbaar");const s=await r.json();const v=(i,x)=>{const e=document.getElementById(i);if(e)e.value=x??""};const c=(i,x)=>{const e=document.getElementById(i);if(e)e.checked=!!x};c("mqttEnabled",s.enabled);v("mqttHost",s.host);v("mqttPort",s.port);v("mqttUser",s.username);v("mqttClientId",s.clientId);v("mqttBaseTopic",s.baseTopic);c("mqttDiscovery",s.homeAssistantDiscovery);}catch(e){showToast(e.message,true);}}
-
-async function saveMqttSettings(){const b=new URLSearchParams({enabled:document.getElementById("mqttEnabled")?.checked?"true":"false",host:document.getElementById("mqttHost")?.value||"",port:document.getElementById("mqttPort")?.value||"1883",username:document.getElementById("mqttUser")?.value||"",password:document.getElementById("mqttPassword")?.value||"",clientId:document.getElementById("mqttClientId")?.value||"LayZSpaController",baseTopic:document.getElementById("mqttBaseTopic")?.value||"layzspa",homeAssistantDiscovery:document.getElementById("mqttDiscovery")?.checked?"true":"false"});try{const r=await fetch("/api/settings/mqtt",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:b.toString()});if(!r.ok)throw new Error("Opslaan mislukt");showToast("MQTT-instellingen opgeslagen");}catch(e){showToast(e.message,true);}}
 
 
-async function loadSchedules(){
-  try{
-    const r=await fetch("/api/schedules",{cache:"no-store"});
-    const data=await r.json();
-    document.querySelectorAll(".schedule-list").forEach(e=>e.innerHTML=`<em>${tr("Nog geen schema's")}</em>`);
-    const days=["zondag","maandag","dinsdag","woensdag","donderdag","vrijdag","zaterdag"];
-    data.forEach(s=>{
-      for(let d=0;d<7;d++){
-        const dayBit=1<<d;
-        if(!(s.daysMask&dayBit)) continue;
-        const list=document.getElementById("day-"+days[d]);
-        if(!list) continue;
-        if(list.querySelector("em")) list.innerHTML="";
-        const div=document.createElement("div");
-        div.className="settings-row schedule-row";
-        div.innerHTML=`<label class="schedule-select"><input type="checkbox" class="schedule-delete-check" data-id="${s.id}" data-day-bit="${dayBit}" data-days-mask="${s.daysMask}" aria-label="${tr("Selecteer schema")}"></label><span>${String(s.hour).padStart(2,"0")}:${String(s.minute).padStart(2,"0")}</span><b>${scheduleActionLabel(s)}${s.action==8?": "+displayTemperature(s.value)+temperatureSymbol():""}</b><button onclick='editScheduleForDay(${JSON.stringify(s)},${dayBit})' aria-label="${tr("Schema bewerken")}">✏️</button><button onclick="deleteScheduleDay(${s.id},${dayBit},${s.daysMask})" aria-label="${tr("Deze dag verwijderen")}">🗑️</button>`;
-        list.appendChild(div);
-      }
-    });
-  }catch(e){showToast(tr("Planner laden mislukt"),true);}
+/* v3.2.0 RC3 - MQTT instellingen standaard ingeklapt */
+function toggleMqttSettings(forceOpen){
+  const panel=document.getElementById("mqttSettingsPanel");
+  const button=document.getElementById("mqttSettingsToggle");
+  if(!panel||!button)return;
+  const open=typeof forceOpen==="boolean"?forceOpen:panel.hasAttribute("hidden");
+  panel.toggleAttribute("hidden",!open);
+  button.classList.toggle("open",open);
+  button.setAttribute("aria-expanded",open?"true":"false");
 }
 
-function openScheduleModal(){
-  const m=document.getElementById("scheduleModal");
-  if(!m) return;
-  m.classList.add("open");
-  m.setAttribute("aria-hidden","false");
-}
+const mqttPublicationDefaults={Temperature:"temperature",Target:"target/state",Power:"power/state",Heater:"heater/state",HeatingActive:"heater/active",Filter:"filter/state",Bubbles:"bubbles/state",Jets:"jets/state",Locked:"lock/state",Connected:"spa/connected",Ready:"spa/ready",Rssi:"system/rssi",Heap:"system/free_heap",Uptime:"system/uptime",Firmware:"system/firmware",Ip:"system/ip",Json:"state",Maintenance:"maintenance"};
+async function loadMqttSettings(){try{const r=await fetch("/api/settings/mqtt",{cache:"no-store"});if(!r.ok)throw new Error("MQTT-instellingen niet beschikbaar");const s=await r.json();const v=(i,x)=>{const e=document.getElementById(i);if(e)e.value=x??""};const c=(i,x)=>{const e=document.getElementById(i);if(e)e.checked=!!x};c("mqttEnabled",s.enabled);v("mqttHost",s.host);v("mqttPort",s.port);v("mqttUser",s.username);v("mqttClientId",s.clientId);v("mqttBaseTopic",s.baseTopic);c("mqttDiscovery",s.homeAssistantDiscovery);Object.entries(mqttPublicationDefaults).forEach(([key,def])=>{c(`publish${key}`,s[`publish${key}`]);v(`topic${key}`,s[`topic${key}`]||def);});updateMqttPublicationCards();}catch(e){showToast(e.message,true);}}
+function updateMqttPublicationCards(){Object.keys(mqttPublicationDefaults).forEach(key=>{const input=document.getElementById(`publish${key}`);input?.closest('.mqtt-publication-card')?.classList.toggle('disabled',!input.checked);});}
+function resetMqttPublicationDefaults(){Object.entries(mqttPublicationDefaults).forEach(([key,value])=>{const input=document.getElementById(`topic${key}`);if(input)input.value=value;});showToast(tr("Standaardtopics hersteld"));}
+async function saveMqttSettings(){const values={enabled:document.getElementById("mqttEnabled")?.checked?"true":"false",host:document.getElementById("mqttHost")?.value||"",port:document.getElementById("mqttPort")?.value||"1883",username:document.getElementById("mqttUser")?.value||"",password:document.getElementById("mqttPassword")?.value||"",clientId:document.getElementById("mqttClientId")?.value||"LayZSpaController",baseTopic:document.getElementById("mqttBaseTopic")?.value||"layzspa",homeAssistantDiscovery:document.getElementById("mqttDiscovery")?.checked?"true":"false"};Object.keys(mqttPublicationDefaults).forEach(key=>{values[`publish${key}`]=document.getElementById(`publish${key}`)?.checked?"true":"false";values[`topic${key}`]=document.getElementById(`topic${key}`)?.value||mqttPublicationDefaults[key];});const b=new URLSearchParams(values);try{const r=await fetch("/api/settings/mqtt",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:b.toString()});if(!r.ok)throw new Error(tr("Opslaan mislukt"));updateMqttPublicationCards();showToast(tr("MQTT-instellingen opgeslagen"));}catch(e){showToast(e.message,true);}}
+document.addEventListener("change",e=>{if(e.target?.id?.startsWith("publish"))updateMqttPublicationCards();});
 
-function closeScheduleModal(){
-  const m=document.getElementById("scheduleModal");
-  if(!m) return;
-  m.classList.remove("open");
-  m.setAttribute("aria-hidden","true");
-}
-
-async function saveSchedule(){
-  const t=document.getElementById("schTime").value.split(":");
-  const selectedBits=[...document.querySelectorAll("#schDays input:checked")].map(c=>Number(c.value));
-  if(!selectedBits.length){showToast(tr("Kies minimaal één dag"),true);return;}
-  const common={enabled:"true",hour:t[0],minute:t[1],action:document.getElementById("schAction").value,value:document.getElementById("schTemp").value};
-  try{
-    if(editingScheduleId===null){
-      for(const bit of selectedBits){
-        const body=new URLSearchParams({...common,daysMask:String(bit)});
-        const r=await fetch("/api/schedules",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:body.toString()});
-        if(!r.ok) throw new Error();
-      }
-    }else{
-      const firstBit=selectedBits.shift();
-      let body=new URLSearchParams({...common,id:String(editingScheduleId),daysMask:String(firstBit)});
-      let r=await fetch("/api/schedules",{method:"PUT",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:body.toString()});
-      if(!r.ok) throw new Error();
-      for(const bit of selectedBits){
-        body=new URLSearchParams({...common,daysMask:String(bit)});
-        r=await fetch("/api/schedules",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:body.toString()});
-        if(!r.ok) throw new Error();
-      }
-    }
-    editingScheduleId=null;
-    closeScheduleModal();
-    await loadSchedules();
-    showToast(tr("Schema opgeslagen"));
-  }catch{
-    showToast(tr("Schema opslaan mislukt"),true);
-  }
-}
-
-document.addEventListener("click", (event) => {
-  if (event.target.id === "scheduleModal") {
-    editingScheduleId = null;
-    closeScheduleModal();
-  }
-});
-
-
-const scheduleActionNames={
-0:{icon:"🔥",label:"Heater aan"},
-1:{icon:"🔥",label:"Heater uit"},
-2:{icon:"💧",label:"Filter aan"},
-3:{icon:"💧",label:"Filter uit"},
-4:{icon:"🫧",label:"Bubbels aan"},
-5:{icon:"🫧",label:"Bubbels uit"},
-6:{icon:"🌊",label:"Jets aan"},
-7:{icon:"🌊",label:"Jets uit"},
-8:{icon:"🌡️",label:"Doeltemperatuur"}
-};
-
-async function updateScheduleDays(id, daysMask){
-  const all=await (await fetch("/api/schedules",{cache:"no-store"})).json();
-  const s=all.find(x=>Number(x.id)===Number(id));
-  if(!s) throw new Error();
-  const body=new URLSearchParams({id:String(id),enabled:String(s.enabled!==false),daysMask:String(daysMask),hour:String(s.hour),minute:String(s.minute),action:String(s.action),value:String(s.value||0)});
-  const r=await fetch("/api/schedules",{method:"PUT",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:body.toString()});
-  if(!r.ok) throw new Error();
-}
-
-async function deleteScheduleDay(id,dayBit,daysMask,skipConfirm=false){
-  if(!skipConfirm&&!confirm(tr("Deze dag verwijderen?"))) return false;
-  try{
-    const remaining=Number(daysMask)&~Number(dayBit);
-    if(remaining){await updateScheduleDays(id,remaining);}
-    else{
-      const b=new URLSearchParams({id:String(id)});
-      const r=await fetch("/api/schedules",{method:"DELETE",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:b.toString()});
-      if(!r.ok) throw new Error();
-    }
-    if(!skipConfirm){await loadSchedules();showToast(tr("Schema verwijderd"));}
-    return true;
-  }catch(e){if(!skipConfirm)showToast(tr("Verwijderen mislukt"),true);return false;}
-}
-
-async function deleteSelectedSchedules(){
-  const selected=[...document.querySelectorAll(".schedule-delete-check:checked")];
-  if(!selected.length){showToast(tr("Selecteer eerst schema's"),true);return;}
-  if(!confirm(tr("Aangevinkte schema's verwijderen?"))) return;
-  const grouped=new Map();
-  selected.forEach(el=>{
-    const id=Number(el.dataset.id), bit=Number(el.dataset.dayBit), mask=Number(el.dataset.daysMask);
-    const current=grouped.get(id)||{mask,remove:0}; current.remove|=bit; grouped.set(id,current);
-  });
-  try{
-    for(const [id,g] of grouped){
-      const remaining=g.mask&~g.remove;
-      if(remaining) await updateScheduleDays(id,remaining);
-      else{
-        const b=new URLSearchParams({id:String(id)});
-        const r=await fetch("/api/schedules",{method:"DELETE",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:b.toString()});
-        if(!r.ok) throw new Error();
-      }
-    }
-    await loadSchedules(); showToast(tr("Aangevinkte schema's verwijderd"));
-  }catch(e){showToast(tr("Verwijderen mislukt"),true);}
-}
-
-// Vervang in loadSchedules "Actie x" door:
-window.scheduleActionLabel=function(s){
-  const action = scheduleActionNames[s.action];
-  return action ? `${action.icon} ${tr(action.label)}` : `${tr("Actie")} ${s.action}`;
-};
-
-
-let editingScheduleId=null;
-
-async function editScheduleForDay(s,dayBit){
-  const single={...s,daysMask:dayBit};
-  return editSchedule(single);
-}
-
-async function editSchedule(s){
-  editingScheduleId=s.id;
-  document.getElementById("schTime").value=`${String(s.hour).padStart(2,"0")}:${String(s.minute).padStart(2,"0")}`;
-  document.getElementById("schAction").value=s.action;
-  document.getElementById("schTemp").value=s.value||38;
-  document.querySelectorAll("#schDays input").forEach(c=>c.checked=(s.daysMask & Number(c.value))!==0);
-  openScheduleModal();
-}
-
-
-
-const weatherDefaults={enabled:true,city:"",country:"NL",latitude:null,longitude:null,locationName:"",interval:30};
-let weatherRefreshTimer=null;
-function getWeatherSettings(){return readLocalConfig("layzspaWeather",weatherDefaults);}
-function loadWeatherSettings(){
-  const cfg=getWeatherSettings();
-  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val??"";};
-  set("weatherCity",cfg.city);set("weatherCountry",cfg.country);set("weatherInterval",String(cfg.interval||30));
-  const enabled=document.getElementById("weatherEnabled");if(enabled)enabled.checked=cfg.enabled!==false;
-  const result=document.getElementById("weatherLocationResult");if(result)result.textContent=cfg.locationName||tr("Niet ingesteld");
-}
-async function searchWeatherLocation(){
-  const city=document.getElementById("weatherCity")?.value.trim()||"";
-  const country=(document.getElementById("weatherCountry")?.value.trim()||"").toUpperCase();
-  if(city.length<2){showToast(tr("Vul een plaats in"),true);return;}
-  const language=(localStorage.getItem("layzspaLanguage")||"nl").slice(0,2).toLowerCase();
-  const url=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=${encodeURIComponent(language)}${country?`&countryCode=${encodeURIComponent(country)}`:""}`;
-  try{
-    const response=await fetch(url,{cache:"no-store"});
-    if(!response.ok)throw new Error(tr("Locatie zoeken mislukt"));
-    const data=await response.json();const found=data.results?.[0];
-    if(!found)throw new Error(tr("Locatie niet gevonden"));
-    const cfg={...getWeatherSettings(),city:found.name,country:found.country_code||country,latitude:found.latitude,longitude:found.longitude,locationName:[found.name,found.admin1].filter(Boolean).join(", ")};
-    localStorage.setItem("layzspaWeather",JSON.stringify(cfg));loadWeatherSettings();
-    showToast(tr("Locatie gevonden"));fetchWeather(true);
-  }catch(error){showToast(error.message||tr("Locatie zoeken mislukt"),true);}
-}
-function weatherDescription(code){
-  const descriptions={
-    0:"Helder",1:"Overwegend helder",2:"Licht bewolkt",3:"Bewolkt",
-    45:"Mist",48:"Aanvriezende mist",
-    51:"Lichte motregen",53:"Motregen",55:"Zware motregen",
-    56:"Lichte ijzelmotregen",57:"Zware ijzelmotregen",
-    61:"Lichte regen",63:"Regen",65:"Zware regen",
-    66:"Lichte ijzel",67:"Zware ijzel",
-    71:"Lichte sneeuw",73:"Sneeuw",75:"Zware sneeuw",77:"Sneeuwkorrels",
-    80:"Lichte regenbuien",81:"Regenbuien",82:"Zware regenbuien",
-    85:"Lichte sneeuwbuien",86:"Zware sneeuwbuien",
-    95:"Onweer",96:"Onweer met lichte hagel",99:"Onweer met zware hagel"
-  };
-  return tr(descriptions[code]||"Onbekend");
-}
-function weatherIcon(code,isDay){
-  if(code===0)return isDay?"☀️":"🌙";
-  if(code===1)return isDay?"🌤️":"🌙";
-  if(code===2)return isDay?"⛅":"☁️";
-  if(code===3)return"☁️";
-  if(code===45||code===48)return"🌫️";
-  if(code>=51&&code<=57)return"🌦️";
-  if(code>=61&&code<=67)return"🌧️";
-  if(code>=71&&code<=77)return"🌨️";
-  if(code>=80&&code<=82)return"🌦️";
-  if(code>=85&&code<=86)return"🌨️";
-  return"⛈️";
-}
-async function fetchWeather(force=false){
-  const cfg=getWeatherSettings();const card=document.getElementById("weatherDashboardCard");
-  if(card)card.classList.toggle("weather-disabled",cfg.enabled===false);
-  if(cfg.enabled===false||!Number.isFinite(Number(cfg.latitude))||!Number.isFinite(Number(cfg.longitude))){
-    setText("weatherLocation",cfg.locationName||tr("Niet ingesteld"));setText("weatherDescription",tr("Locatie instellen"));return;
-  }
-  const cache=readLocalConfig("layzspaWeatherCache",{});const maxAge=(Number(cfg.interval)||30)*60000;
-  // Toon altijd direct de laatst bekende weergegevens. Ook een verlopen cache
-  // blijft zichtbaar terwijl op de achtergrond een actuele update wordt opgehaald.
-  if(cache.data)renderWeather(cache.data,cfg,cache.time);
-  if(!force&&cache.time&&Date.now()-cache.time<maxAge&&cache.data)return;
-  const fahrenheit=(localStorage.getItem("layzspaTemperatureUnit")||"Celsius")==="Fahrenheit";
-  const url=`https://api.open-meteo.com/v1/forecast?latitude=${cfg.latitude}&longitude=${cfg.longitude}&current=temperature_2m,apparent_temperature,is_day,weather_code,wind_speed_10m&daily=precipitation_probability_max&timezone=auto&forecast_days=1${fahrenheit?"&temperature_unit=fahrenheit":""}`;
-  try{
-    const response=await fetch(url,{cache:"no-store"});if(!response.ok)throw new Error();
-    const data=await response.json();const fetchedAt=Date.now();localStorage.setItem("layzspaWeatherCache",JSON.stringify({time:fetchedAt,data}));renderWeather(data,cfg,fetchedAt);
-  }catch(_){if(!cache.data)setText("weatherDescription",tr("Weer niet beschikbaar"));}
-}
-function renderWeather(data,cfg,updatedAt=Date.now()){
-  const current=data.current||{};const unit=data.current_units?.temperature_2m||"°C";
-  const languageLocale={nl:"nl-NL",en:"en-GB",de:"de-DE",fr:"fr-FR"}[activeLanguage]||undefined;
-  const windUnitRaw=data.current_units?.wind_speed_10m||"km/h";
-  const windUnit=windUnitRaw==="km/h"?tr("km/u"):windUnitRaw;
-  setText("weatherLocation",cfg.locationName||cfg.city||tr("Weer"));
-  setText("weatherTemperature",Number.isFinite(Number(current.temperature_2m))?`${Number(current.temperature_2m).toFixed(1)}${unit}`:"--");
-  setText("weatherDescription",weatherDescription(Number(current.weather_code)));
-  setText("weatherRain",`${data.daily?.precipitation_probability_max?.[0]??0}%`);
-  setText("weatherWind",`${Math.round(Number(current.wind_speed_10m)||0)} ${windUnit}`);
-  setText("weatherUpdated",new Date(updatedAt||Date.now()).toLocaleTimeString(languageLocale,{hour:"2-digit",minute:"2-digit"}));
-  setText("weatherIcon",weatherIcon(Number(current.weather_code),Number(current.is_day)===1));
-  const rain=document.getElementById("weatherRain")?.parentElement;if(rain){rain.title=tr("Regenkans");rain.setAttribute("aria-label",`${tr("Regenkans")}: ${rain.innerText.trim()}`);}
-  const wind=document.getElementById("weatherWind")?.parentElement;if(wind){wind.title=tr("Wind");wind.setAttribute("aria-label",`${tr("Wind")}: ${wind.innerText.trim()}`);}
-  const updated=document.getElementById("weatherUpdated");if(updated){updated.title=tr("Laatst bijgewerkt");updated.setAttribute("aria-label",`${tr("Laatst bijgewerkt")}: ${updated.innerText}`);}
-}
-function scheduleWeatherRefresh(){
-  clearInterval(weatherRefreshTimer);const cfg=getWeatherSettings();const minutes=Math.max(15,Number(cfg.interval)||30);
-  weatherRefreshTimer=setInterval(()=>fetchWeather(true),minutes*60000);
-}
-function saveWeatherSettings(){
-  const previous=getWeatherSettings();
-  const cfg={...previous,enabled:document.getElementById("weatherEnabled")?.checked!==false,city:document.getElementById("weatherCity")?.value.trim()||"",country:(document.getElementById("weatherCountry")?.value.trim()||"").toUpperCase(),interval:Number(document.getElementById("weatherInterval")?.value)||30};
-  if(cfg.city!==previous.city||cfg.country!==previous.country){cfg.latitude=null;cfg.longitude=null;cfg.locationName="";}
-  localStorage.setItem("layzspaWeather",JSON.stringify(cfg));
-  const sections=getDashboardSections();sections.weather=cfg.enabled;localStorage.setItem("layzspaDashboardSections",JSON.stringify(sections));applyDashboardSections();scheduleWeatherRefresh();fetchWeather(true);
-}
+let maintenanceData=null;
+function maintenanceLabel(item){if(!item.enabled)return tr("Uit");if(item.due)return item.daysRemaining<0?`${Math.abs(item.daysRemaining)} ${tr("dagen te laat")}`:tr("Vandaag nodig");if(item.daysRemaining<=2)return `${tr("Over")} ${item.daysRemaining} ${tr(item.daysRemaining===1?"dag":"dagen")}`;return `${item.daysRemaining} ${tr("dagen")}`;}
+function renderMaintenance(data){maintenanceData=data;const alertTexts={filterReplace:{due:"Filter vervangen nodig",soon:"Filter vervangen binnenkort"},filterClean:{due:"Filter schoonmaken nodig",soon:"Filter schoonmaken binnenkort"},chlorine:{due:"Chloor toevoegen nodig",soon:"Chloor toevoegen binnenkort"}};let alerts=[];Object.entries(alertTexts).forEach(([key,texts])=>{const item=data[key];const card=document.querySelector(`[data-maintenance-card="${key}"]`);if(!card||!item)return;card.classList.toggle("due",item.enabled&&item.due);card.classList.toggle("soon",item.enabled&&!item.due&&item.daysRemaining<=2);card.classList.toggle("disabled",!item.enabled);card.querySelector('[data-role="last"]').textContent=item.lastDate||tr("Nog niet geregistreerd");card.querySelector('[data-role="next"]').textContent=item.nextDate||tr("Na eerste registratie");card.querySelector('.maintenance-badge').textContent=maintenanceLabel(item);const en=document.getElementById(`${key}Enabled`),days=document.getElementById(`${key}Days`);if(en)en.checked=item.enabled;if(days)days.value=item.intervalDays;if(item.enabled&&item.due)alerts.push(`🔴 ${tr(texts.due)}`);else if(item.enabled&&item.daysRemaining<=2)alerts.push(`🟠 ${tr(texts.soon)}`);});const overall=document.getElementById("maintenanceOverall");if(overall){overall.textContent=data.status==="ALARM"?tr("Onderhoud nodig"):data.status==="WARNING"?tr("Binnenkort onderhoud"):tr("Alles in orde");overall.dataset.status=data.status;}const alert=document.getElementById("maintenanceAlert");if(alert){alert.classList.toggle("hidden",alerts.length===0);alert.innerHTML=alerts.length?`<strong>${tr("Onderhoudsmelding")}</strong><span>${alerts.join("<br>")}</span>`:"";}renderDashboardMaintenanceAlert(data);}
+function renderDashboardMaintenanceAlert(data){let box=document.getElementById("dashboardMaintenanceAlert");if(!box){const dashboard=document.getElementById("dashboardView");const head=dashboard?.querySelector('.page-head');if(dashboard&&head){box=document.createElement('button');box.id="dashboardMaintenanceAlert";box.className="dashboard-maintenance-alert hidden";box.onclick=()=>showView('maintenance');head.insertAdjacentElement('afterend',box);}}if(!box)return;const needed=data.status!=="OK";box.classList.toggle("hidden",!needed);box.textContent=data.status==="ALARM"?tr("🧰 Onderhoud nodig – tik om te bekijken"):tr("🧰 Onderhoud binnenkort – tik om te bekijken");}
+async function loadMaintenance(){try{const r=await fetch('/api/maintenance',{cache:'no-store'});if(!r.ok)throw new Error(tr('Onderhoud kon niet worden geladen'));renderMaintenance(await r.json());}catch(e){showToast(e.message,true);}}
+async function saveMaintenanceSettings(){const b=new URLSearchParams({filterReplaceEnabled:document.getElementById('filterReplaceEnabled')?.checked?'true':'false',filterReplaceDays:document.getElementById('filterReplaceDays')?.value||'30',filterCleanEnabled:document.getElementById('filterCleanEnabled')?.checked?'true':'false',filterCleanDays:document.getElementById('filterCleanDays')?.value||'7',chlorineEnabled:document.getElementById('chlorineEnabled')?.checked?'true':'false',chlorineDays:document.getElementById('chlorineDays')?.value||'3'});try{const r=await fetch('/api/maintenance',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:b.toString()});if(!r.ok)throw new Error(tr('Onderhoudsinstellingen opslaan mislukt'));renderMaintenance(await r.json());showToast(tr('Onderhoudsinstellingen opgeslagen'));}catch(e){showToast(e.message,true);}}
+async function markMaintenanceDone(item){try{const r=await fetch('/api/maintenance/done',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:new URLSearchParams({item}).toString()});const result=await r.json();if(!r.ok)throw new Error(tr(result.error||'Registreren mislukt'));renderMaintenance(result);showToast(tr('Datum bijgewerkt naar vandaag'));}catch(e){showToast(e.message,true);}}
 
 async function loadRegionalSettings(){
   try{
@@ -1398,9 +1212,9 @@ async function saveRegionalSettings(){
       headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
       body:body.toString()
     });
-    if(!r.ok) throw new Error("Opslaan mislukt");
+    if(!r.ok) throw new Error(tr("Opslaan mislukt"));
     render();
-    showToast("Regionale instellingen opgeslagen");
+    showToast(tr("Regionale instellingen opgeslagen"));
   }catch(e){showToast(e.message,true);}
 }
 
@@ -1501,9 +1315,9 @@ function renderActivityTimeline() {
 }
 
 async function clearHistory() {
-  if (!confirm("Historie volledig wissen?")) return;
+  if (!confirm(tr("Historie volledig wissen?"))) return;
   const response = await fetch("/api/history", { method: "DELETE" });
-  if (response.ok) { historyData=[]; renderHistory(); showToast("Historie gewist"); }
+  if (response.ok) { historyData=[]; renderHistory(); showToast(tr("Historie gewist")); }
 }
 
 async function loadEnergy() {
@@ -1533,23 +1347,156 @@ async function saveEnergySettings() {
     currency: document.getElementById("energyCurrency")?.value || "€"
   });
   const response = await fetch("/api/energy", {method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:body.toString()});
-  if (response.ok) { showToast("Energie-instellingen opgeslagen"); loadEnergy(); } else showToast("Opslaan mislukt", true);
+  if (response.ok) { showToast(tr("Energie-instellingen opgeslagen")); loadEnergy(); } else showToast(tr("Opslaan mislukt"), true);
 }
 
 async function resetEnergy() {
-  if (!confirm("Alle energietellers resetten?")) return;
+  if (!confirm(tr("Alle energietellers resetten?"))) return;
   const response=await fetch("/api/energy",{method:"DELETE"});
-  if(response.ok){showToast("Energietellers gereset");loadEnergy();}
+  if(response.ok){showToast(tr("Energietellers gereset"));loadEnergy();}
 }
 
+
+
+let schedulesData=[];
+const plannerDayDefinitions=[
+  {mask:2,id:"maandag",label:"Maandag"},
+  {mask:4,id:"dinsdag",label:"Dinsdag"},
+  {mask:8,id:"woensdag",label:"Woensdag"},
+  {mask:16,id:"donderdag",label:"Donderdag"},
+  {mask:32,id:"vrijdag",label:"Vrijdag"},
+  {mask:64,id:"zaterdag",label:"Zaterdag"},
+  {mask:1,id:"zondag",label:"Zondag"}
+];
+const plannerActionLabels=["Heater aan","Heater uit","Filter aan","Filter uit","Bubbels aan","Bubbels uit","Jets aan","Jets uit","Doeltemperatuur"];
+
+function openScheduleModal(){
+  const modal=document.getElementById("scheduleModal");
+  if(!modal){showToast(tr("Planner-venster ontbreekt"),true);return;}
+  document.getElementById("schTime").value="08:00";
+  document.getElementById("schAction").value="0";
+  document.getElementById("schTemp").value="38";
+  document.querySelectorAll('#schDays input[type="checkbox"]').forEach(input=>{input.checked=false;});
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden","false");
+}
+function closeScheduleModal(){
+  const modal=document.getElementById("scheduleModal");
+  if(!modal)return;
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden","true");
+}
+function plannerActionText(item){
+  const label=tr(plannerActionLabels[Number(item.action)]||"Onbekend");
+  return Number(item.action)===8?`${label}: ${Number(item.value)||0}°`:label;
+}
+function renderSchedules(){
+  for(const day of plannerDayDefinitions){
+    const list=document.getElementById(`day-${day.id}`);
+    if(!list)continue;
+    const rows=schedulesData.filter(item=>(Number(item.daysMask)&day.mask)!==0);
+    if(!rows.length){list.innerHTML=`<em>${escapeHtml(tr("Nog geen schema's"))}</em>`;continue;}
+    list.innerHTML=rows.map(item=>{
+      const time=`${String(item.hour).padStart(2,"0")}:${String(item.minute).padStart(2,"0")}`;
+      return `<article class="schedule-row" data-schedule-id="${Number(item.id)}">
+        <label class="schedule-select"><input type="checkbox" data-schedule-select value="${Number(item.id)}" aria-label="${escapeHtml(tr("Schema selecteren"))}"></label>
+        <strong>${time}</strong>
+        <span>${escapeHtml(plannerActionText(item))}</span>
+        <label class="ui-switch" title="${escapeHtml(tr("Ingeschakeld"))}"><input type="checkbox" ${item.enabled!==false?"checked":""} onchange="setScheduleEnabled(${Number(item.id)},this.checked)"><i></i></label>
+        <button class="icon-action schedule-delete" type="button" onclick="deleteSchedule(${Number(item.id)})" title="${escapeHtml(tr("Verwijderen"))}">🗑️</button>
+      </article>`;
+    }).join("");
+  }
+  translateDom(document.getElementById("plannerView"));
+}
+async function loadSchedules(){
+  try{
+    const response=await fetch("/api/schedules",{cache:"no-store"});
+    if(!response.ok)throw new Error(tr("Planner kon niet worden geladen"));
+    schedulesData=await response.json();
+    if(!Array.isArray(schedulesData))schedulesData=[];
+    renderSchedules();
+  }catch(error){showToast(error.message||tr("Planner kon niet worden geladen"),true);}
+}
+async function saveSchedule(){
+  const time=(document.getElementById("schTime")?.value||"").split(":");
+  const checked=[...document.querySelectorAll('#schDays input[type="checkbox"]:checked')];
+  const daysMask=checked.reduce((sum,input)=>sum+Number(input.value||0),0);
+  if(time.length!==2||daysMask===0){showToast(tr("Kies een tijd en minimaal één dag"),true);return;}
+  const action=Number(document.getElementById("schAction")?.value||0);
+  const values={enabled:"true",daysMask:String(daysMask),hour:String(Number(time[0])),minute:String(Number(time[1])),action:String(action),value:String(Number(document.getElementById("schTemp")?.value||38))};
+  try{
+    const response=await fetch("/api/schedules",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:new URLSearchParams(values).toString()});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(tr(result.error||"Schema niet opgeslagen"));
+    closeScheduleModal();
+    showToast(tr("Schema opgeslagen"));
+    await loadSchedules();
+  }catch(error){showToast(error.message||tr("Schema niet opgeslagen"),true);}
+}
+async function setScheduleEnabled(id,enabled){
+  const current=schedulesData.find(item=>Number(item.id)===Number(id));
+  if(!current)return;
+  const values={id:String(id),enabled:enabled?"true":"false",daysMask:String(current.daysMask),hour:String(current.hour),minute:String(current.minute),action:String(current.action),value:String(current.value||0)};
+  try{
+    const response=await fetch("/api/schedules",{method:"PUT",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:new URLSearchParams(values).toString()});
+    if(!response.ok)throw new Error(tr("Schema niet bijgewerkt"));
+    current.enabled=enabled;
+  }catch(error){showToast(error.message,true);await loadSchedules();}
+}
+async function deleteSchedule(id,ask=true){
+  if(ask&&!confirm(tr("Schema verwijderen?")))return false;
+  const response=await fetch("/api/schedules",{method:"DELETE",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:new URLSearchParams({id:String(id)}).toString()});
+  if(!response.ok){showToast(tr("Schema verwijderen mislukt"),true);return false;}
+  return true;
+}
+async function deleteSelectedSchedules(){
+  const ids=[...document.querySelectorAll('[data-schedule-select]:checked')].map(input=>Number(input.value));
+  if(!ids.length){showToast(tr("Selecteer minimaal één schema"),true);return;}
+  if(!confirm(tr("Aangevinkte schema's verwijderen?")))return;
+  for(const id of ids)await deleteSchedule(id,false);
+  showToast(tr("Schema's verwijderd"));
+  await loadSchedules();
+}
 
 function translateLogMessage(message){
-  const exact=tr(String(message||""));
-  if(exact!==String(message||"")) return exact;
-  return String(message||"").replace(/Scheduler geladen: (\d+) schema's/i,(_,n)=>`${tr("Planner geladen")}: ${n} ${tr("schema's")}`);
+  const raw=String(message||"");
+  const exact=tr(raw);
+  if(exact!==raw) return exact;
+  const patterns=[
+    [/Scheduler geladen: (\d+) schema's/i,(_,n)=>`${tr("Planner geladen")}: ${n} ${tr("schema's")}`],
+    [/MQTT verbindingspoging mislukt.*code[=: ](-?\d+)/i,(_,n)=>`${tr("MQTT connection attempt failed")} (${tr("status")} ${n})`],
+    [/Hardwareconfiguratie opgeslagen; herstart vereist/i,()=>tr("Hardware configuration saved; restart required")]
+  ];
+  for(const [pattern,replacement] of patterns)if(pattern.test(raw))return raw.replace(pattern,replacement);
+  return raw;
 }
-async function loadLogs() {
-  try { const response=await fetch("/api/logs?limit=50",{cache:"no-store"}); if(!response.ok)throw new Error("Logboek niet beschikbaar"); logData=await response.json(); renderLogs(); } catch(error){showToast(error.message,true);}
+let liveLogTimer = null;
+
+function updateLiveLogState() {
+  const enabled = document.getElementById("liveLogEnabled")?.checked !== false;
+  localStorage.setItem("spaLiveLog", enabled ? "1" : "0");
+  if (liveLogTimer) clearInterval(liveLogTimer);
+  liveLogTimer = null;
+  if (enabled) {
+    liveLogTimer = setInterval(() => {
+      if (document.getElementById("logsView")?.classList.contains("active")) {
+        loadDiagnostics();
+        loadLogs(true);
+      }
+    }, 2000);
+  }
+}
+
+async function loadLogs(silent = false) {
+  try {
+    const response = await fetch("/api/logs?limit=50", {cache:"no-store"});
+    if (!response.ok) throw new Error(tr("Logboek niet beschikbaar"));
+    logData = await response.json();
+    renderLogs();
+  } catch (error) {
+    if (!silent) showToast(error.message, true);
+  }
 }
 
 function renderLogs() {
@@ -1560,10 +1507,13 @@ function renderLogs() {
   list.innerHTML=rows.map(item=>{const date=new Date(Number(item.timestamp)*1000);return `<article class="log-entry level-${String(item.level).toLowerCase()}"><time>${date.toLocaleString()}</time><b>${escapeHtml(tr(item.level))}</b><p>${escapeHtml(translateLogMessage(item.message))}</p></article>`;}).join('');
 }
 
-async function clearLogs(){if(!confirm("Logboek wissen?"))return;const r=await fetch("/api/logs",{method:"DELETE"});if(r.ok){logData=[];renderLogs();showToast("Logboek gewist");}}
+async function clearLogs(){if(!confirm(tr("Logboek wissen?")))return;const r=await fetch("/api/logs",{method:"DELETE"});if(r.ok){logData=[];renderLogs();showToast(tr("Logboek gewist"));}}
 
 window.addEventListener("resize", () => { if (document.getElementById("historyView")?.classList.contains("active")) renderHistory(); });
 initTheme();
+const liveLogCheckbox = document.getElementById("liveLogEnabled");
+if (liveLogCheckbox) liveLogCheckbox.checked = localStorage.getItem("spaLiveLog") !== "0";
+updateLiveLogState();
 loadSystemStatus();
 loadEnergy();
 setInterval(loadSystemStatus, 30000);
@@ -1579,13 +1529,19 @@ function diagnosticState(value) {
 async function loadDiagnostics() {
   try {
     const response = await fetch("/api/diagnostics", { cache: "no-store" });
-    if (!response.ok) throw new Error("Diagnostiek niet beschikbaar");
+    if (!response.ok) throw new Error(tr("Diagnostiek niet beschikbaar"));
     diagnosticData = await response.json();
     setText("diagWifi", diagnosticState(diagnosticData.wifiConnected));
     setText("diagRssi", diagnosticData.wifiConnected ? `${diagnosticData.rssi} dBm` : "Offline");
     setText("diagMqtt", diagnosticState(diagnosticData.mqttConnected));
     setText("diagTime", diagnosticState(diagnosticData.timeSynchronized));
     setText("diagSpa", diagnosticState(diagnosticData.spaConnected));
+    const otaError = String(diagnosticData.otaLastError || "");
+    const mqttError = Number(diagnosticData.mqttLastError || 0);
+    setText("diagOta", otaError ? tr("Aandacht") : "OK");
+    setText("diagOtaError", otaError || tr("Geen fout gemeld"));
+    setText("diagMqttReconnects", String(diagnosticData.mqttReconnectCount || 0));
+    setText("diagMqttError", mqttError ? `MQTT status ${mqttError}` : tr("Geen fout gemeld"));
     setText("diagSpaData", diagnosticData.spaDataValid ? tr("Data geldig") : tr("Geen geldige data"));
     setText("diagHeap", formatBytes(diagnosticData.freeHeap || 0));
     setText("diagFragmentation", `${diagnosticData.heapFragmentation || 0}% ${tr("fragmentatie")}`);
@@ -1604,7 +1560,7 @@ async function runSelfTest() {
     showToast(summary, !result.ok);
     await loadDiagnostics();
     await loadLogs();
-  } catch (error) { showToast("Zelftest mislukt", true); }
+  } catch (error) { showToast(tr("Zelftest mislukt"), true); }
 }
 
 function downloadTextFile(filename, text, type="text/plain") {
@@ -1633,47 +1589,193 @@ async function downloadDiagnosticReport() {
       ...logs.map(item=>`${item.timestamp} [${item.level}] ${item.message}`)
     ].join("\n");
     downloadTextFile(`layzspa-diagnostics-${Date.now()}.txt`, report);
-  } catch (error) { showToast("Rapport maken mislukt", true); }
+  } catch (error) { showToast(tr("Rapport maken mislukt"), true); }
+}
+
+async function fetchJsonOrNull(url) {
+  const response = await fetch(url, {cache:"no-store"});
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(url);
+  return response.json();
+}
+
+async function fetchBackupFile(name) {
+  const response = await fetch(`/api/backup/file?name=${encodeURIComponent(name)}`, {cache:"no-store"});
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`backup:${name}`);
+  return response.json();
+}
+
+function removeLegacyAutomationReferences(key, value) {
+  if (typeof value !== "string" || !value.includes("automation")) return value;
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return JSON.stringify(parsed.filter(item => item !== "automation"));
+    if (parsed && typeof parsed === "object") {
+      delete parsed.automation;
+      return JSON.stringify(parsed);
+    }
+  } catch (_) {}
+  return value;
+}
+
+function exportBrowserSettings() {
+  const keys = [
+    "layzspaTemperatureUnit","layzspaDashboardOrder","layzspaDashboardButtonOrder",
+    "layzspaNavigationOrder","layzspaBottomNavEnabled","layzspaNavTabs",
+    "layzspaDashboardSections","layzspaDashboardButtons","spaTheme",
+    "layzspaWeatherSettings","layzspaLanguageMode","layzspaLanguage",
+    "layzspaAccent","layzspaMotion","layzspaCompact","layzspaSmartInsight"
+  ];
+  const values = {};
+  keys.forEach(key => {
+    const value = localStorage.getItem(key);
+    if (value !== null) values[key] = removeLegacyAutomationReferences(key, value);
+  });
+  return values;
 }
 
 async function exportBackup() {
   try {
-    const urls = ["/api/settings/mqtt","/api/settings/region","/api/schedules","/api/energy"];
-    const responses = await Promise.all(urls.map(url=>fetch(url,{cache:"no-store"})));
-    if (responses.some(r=>!r.ok)) throw new Error();
-    const [mqtt, region, schedules, energy] = await Promise.all(responses.map(r=>r.json()));
-    const backup = {format:"LayZSpaBackup",version:"0.2",createdAt:new Date().toISOString(),mqtt,region,schedules,energy};
-    downloadTextFile(`layzspa-backup-${Date.now()}.json`, JSON.stringify(backup,null,2), "application/json");
-    showToast("Back-up gedownload");
-  } catch (error) { showToast("Back-up maken mislukt", true); }
+    const [settings, hardware, maintenance, schedules, energy] = await Promise.all([
+      fetchBackupFile("settings"), fetchBackupFile("hardware"),
+      fetchBackupFile("maintenance"), fetchJsonOrNull("/api/schedules"), fetchJsonOrNull("/api/energy")
+    ]);
+    const backup = {
+      format:"SpaControlBackup", version:"2.0", backupVersion:2,
+      createdAt:new Date().toISOString(), wifiIncluded:false,
+      files:{settings,hardware,maintenance},
+      schedules:schedules||[], energy:energy||null,
+      browser:exportBrowserSettings()
+    };
+    downloadTextFile(`spa-control-backup-${Date.now()}.json`, JSON.stringify(backup,null,2), "application/json");
+    showToast(tr("Back-up gedownload"));
+  } catch (error) { showToast(tr("Back-up maken mislukt"), true); }
 }
 
 async function postForm(url, values, method="POST") {
   const body = new URLSearchParams();
-  Object.entries(values).forEach(([key,value])=>{
+  Object.entries(values || {}).forEach(([key,value])=>{
     if (value !== undefined && value !== null && typeof value !== "object") body.set(key,String(value));
   });
   const response = await fetch(url,{method,headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:body.toString()});
   if(!response.ok) throw new Error(url);
+  return response;
+}
+
+async function restoreBackupFile(name, value) {
+  if (!value) return;
+  const response = await fetch(`/api/backup/file?name=${encodeURIComponent(name)}`, {
+    method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(value)
+  });
+  if (!response.ok) { let message=""; try{message=(await response.json()).error||"";}catch(_){} throw new Error(message||`backup:${name}`); }
+}
+
+function restoreBrowserSettings(values) {
+  Object.entries(values || {}).forEach(([key,value]) => {
+    if (typeof value === "string") {
+      localStorage.setItem(key, removeLegacyAutomationReferences(key, value));
+    }
+  });
+}
+
+function normalizeBackupPayload(rawBackup) {
+  if (!rawBackup || typeof rawBackup !== "object" || Array.isArray(rawBackup)) return null;
+  const files = rawBackup.files && typeof rawBackup.files === "object"
+    ? rawBackup.files
+    : {
+        settings: rawBackup.settings ?? null,
+        hardware: rawBackup.hardware ?? rawBackup.bestway_hwcfg ?? null,
+        maintenance: rawBackup.maintenance ?? null
+      };
+  const recognized = rawBackup.format === "SpaControlBackup" ||
+    rawBackup.format === "Spa Control Backup" ||
+    files.settings || files.hardware || files.maintenance ||
+    Array.isArray(rawBackup.schedules) || rawBackup.energy || rawBackup.browser;
+  if (!recognized) return null;
+  return {
+    format: "SpaControlBackup",
+    version: String(rawBackup.version || rawBackup.backupVersion || "1.0"),
+    files,
+    schedules: Array.isArray(rawBackup.schedules) ? rawBackup.schedules : null,
+    energy: rawBackup.energy && typeof rawBackup.energy === "object" ? rawBackup.energy : null,
+    browser: rawBackup.browser && typeof rawBackup.browser === "object" ? rawBackup.browser : null
+  };
 }
 
 async function importBackup(event) {
   const file = event.target.files?.[0];
   if (!file) return;
-  if (!confirm("Deze back-up herstellen? Bestaande planneritems worden vervangen.")) { event.target.value=""; return; }
+  if (!confirm(tr("Deze volledige back-up herstellen? Bestaande instellingen en planneritems worden vervangen."))) {
+    event.target.value="";
+    return;
+  }
+
+  const results = [];
+  let restoredBackendSection = false;
+  const runSection = async (label, action) => {
+    try {
+      await action();
+      results.push(`✓ ${tr(label)}`);
+      restoredBackendSection = true;
+      return true;
+    } catch (error) {
+      results.push(`✗ ${tr(label)}: ${error.message || tr("Herstellen mislukt")}`);
+      return false;
+    }
+  };
+
   try {
-    const backup = JSON.parse(await file.text());
-    if (backup.format !== "LayZSpaBackup") throw new Error("Ongeldig back-upbestand");
-    if (backup.mqtt) await postForm("/api/settings/mqtt", backup.mqtt);
-    if (backup.region) await postForm("/api/settings/region", backup.region);
-    if (backup.energy) await postForm("/api/energy", backup.energy);
-    const existing = await (await fetch("/api/schedules",{cache:"no-store"})).json();
-    for (const item of existing) await postForm("/api/schedules", {id:item.id}, "DELETE");
-    for (const item of (backup.schedules || [])) await postForm("/api/schedules", item, "POST");
-    showToast("Back-up hersteld; ESP wordt herstart");
-    setTimeout(()=>fetch("/api/restart",{method:"POST"}),800);
-  } catch (error) { showToast(error.message || "Herstellen mislukt", true); }
-  finally { event.target.value=""; }
+    const text = (await file.text()).replace(/^\uFEFF/, "").trim();
+    let parsed;
+    try { parsed = JSON.parse(text); }
+    catch (_) { throw new Error(tr("Back-upbestand kan niet worden gelezen")); }
+
+    const backup = normalizeBackupPayload(parsed);
+    if (!backup) throw new Error(tr("Ongeldig back-upbestand: structuur niet herkend"));
+
+    if (backup.files.settings) {
+      await runSection("Instellingen hersteld", () => restoreBackupFile("settings", backup.files.settings));
+    }
+    if (backup.files.hardware) {
+      await runSection("Hardware hersteld", () => restoreBackupFile("hardware", backup.files.hardware));
+    }
+    if (backup.files.maintenance) {
+      await runSection("Onderhoud hersteld", () => restoreBackupFile("maintenance", backup.files.maintenance));
+    }
+
+    if (backup.schedules !== null) {
+      await runSection("Planner hersteld", async () => {
+        const existingResponse = await fetch("/api/schedules",{cache:"no-store"});
+        const existing = existingResponse.ok ? await existingResponse.json() : [];
+        for (const item of existing) await postForm("/api/schedules", {id:item.id}, "DELETE");
+        for (const item of backup.schedules) await postForm("/api/schedules", item, "POST");
+      });
+    }
+
+    if (backup.energy) {
+      await runSection("Energie hersteld", () => postForm("/api/energy", backup.energy));
+    }
+
+    if (backup.browser) {
+      restoreBrowserSettings(backup.browser);
+      results.push(`✓ ${tr("Webinterface hersteld")}`);
+    }
+
+    results.push(`• ${tr("WiFi-instellingen behouden")}`);
+    const failed = results.some(line => line.startsWith("✗"));
+    showToast(results.join("\n"), failed);
+
+    if (restoredBackendSection) {
+      setTimeout(()=>fetch("/api/restart",{method:"POST"}),1800);
+    } else {
+      setTimeout(()=>location.reload(),800);
+    }
+  } catch (error) {
+    showToast(error.message || tr("Herstellen mislukt"), true);
+  } finally {
+    event.target.value="";
+  }
 }
 
 
@@ -1746,7 +1848,7 @@ async function saveHardwareSettings() {
     const response = await fetch("/api/hardware", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cfg)});
     const result = await response.json();
     if (!response.ok || !result.ok) throw new Error(result.error || "Opslaan mislukt");
-    showToast("Hardware opgeslagen. Herstart de ESP om dit actief te maken.", "success");
+    showToast(tr("Hardware opgeslagen. Herstart de ESP om dit actief te maken."), "success");
   } catch(error) { showToast(error.message, "error"); }
 }
 
@@ -1755,8 +1857,127 @@ document.addEventListener("DOMContentLoaded", () => {
   loadDashboardButtons();
   applyDashboardSections();
   applyNavigationSettings();
+  loadNavigationOrderEditor();
 });
 
+
+
+
+/* v3.2.0 RC7 - robuuste lokale weerinstellingen en weerkaart */
+const WEATHER_SETTINGS_KEY = "layzspaWeatherSettings";
+const WEATHER_CACHE_KEY = "layzspaWeatherCache";
+let weatherRefreshTimer = null;
+
+function getWeatherSettings(){
+  try{
+    return {enabled:true,city:"",country:"NL",interval:30,latitude:null,longitude:null,...JSON.parse(localStorage.getItem(WEATHER_SETTINGS_KEY)||"{}")};
+  }catch(_){
+    return {enabled:true,city:"",country:"NL",interval:30,latitude:null,longitude:null};
+  }
+}
+function loadWeatherSettings(){
+  const cfg=getWeatherSettings();
+  const set=(id,value)=>{const el=document.getElementById(id);if(el)el.value=value??"";};
+  set("weatherCity",cfg.city); set("weatherCountry",cfg.country||"NL"); set("weatherInterval",String(cfg.interval||30));
+  const enabled=document.getElementById("weatherEnabled"); if(enabled) enabled.checked=cfg.enabled!==false;
+  const result=document.getElementById("weatherLocationResult");
+  if(result) result.textContent=cfg.latitude!=null&&cfg.longitude!=null?`${Number(cfg.latitude).toFixed(4)}, ${Number(cfg.longitude).toFixed(4)}`:"--";
+}
+async function saveWeatherSettings(){
+  const previous=getWeatherSettings();
+  const cfg={
+    ...previous,
+    enabled:document.getElementById("weatherEnabled")?.checked!==false,
+    city:document.getElementById("weatherCity")?.value.trim()||"",
+    country:(document.getElementById("weatherCountry")?.value.trim()||"NL").toUpperCase(),
+    interval:Math.max(15,Number(document.getElementById("weatherInterval")?.value||30))
+  };
+  localStorage.setItem(WEATHER_SETTINGS_KEY,JSON.stringify(cfg));
+  showToast(tr("Weerinstellingen opgeslagen"));
+  scheduleWeatherRefresh();
+  await fetchWeather(true);
+  return true;
+}
+async function searchWeatherLocation(){
+  const city=document.getElementById("weatherCity")?.value.trim()||"";
+  const country=(document.getElementById("weatherCountry")?.value.trim()||"").toUpperCase();
+  const result=document.getElementById("weatherLocationResult");
+  if(!city){showToast(tr("Vul eerst een plaats in"),true);return;}
+  if(result)result.textContent=tr("Zoeken...");
+  try{
+    const url=`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=10&language=${encodeURIComponent(activeLanguage||"nl")}&format=json`;
+    const response=await fetch(url,{cache:"no-store"});
+    if(!response.ok)throw new Error(tr("Locatie zoeken mislukt"));
+    const data=await response.json();
+    const candidates=Array.isArray(data.results)?data.results:[];
+    const match=candidates.find(x=>!country||String(x.country_code||"").toUpperCase()===country)||candidates[0];
+    if(!match)throw new Error(tr("Locatie niet gevonden"));
+    const cfg={...getWeatherSettings(),city:match.name||city,country:String(match.country_code||country||"NL").toUpperCase(),latitude:match.latitude,longitude:match.longitude};
+    localStorage.setItem(WEATHER_SETTINGS_KEY,JSON.stringify(cfg));
+    loadWeatherSettings();
+    if(result)result.textContent=`${cfg.city}, ${cfg.country} · ${Number(cfg.latitude).toFixed(4)}, ${Number(cfg.longitude).toFixed(4)}`;
+    showToast(tr("Locatie gevonden"));
+    await fetchWeather(true);
+  }catch(error){if(result)result.textContent="--";showToast(error.message||tr("Locatie zoeken mislukt"),true);}
+}
+function weatherCodeInfo(code){
+  const n=Number(code);
+  if(n===0)return ["☀️",tr("Helder")];
+  if([1,2].includes(n))return ["🌤️",tr("Licht bewolkt")];
+  if(n===3)return ["☁️",tr("Bewolkt")];
+  if([45,48].includes(n))return ["🌫️",tr("Mist")];
+  if([51,53,55,56,57].includes(n))return ["🌦️",tr("Motregen")];
+  if([61,63,65,66,67,80,81,82].includes(n))return ["🌧️",tr("Regen")];
+  if([71,73,75,77,85,86].includes(n))return ["🌨️",tr("Sneeuw")];
+  if([95,96,99].includes(n))return ["⛈️",tr("Onweer")];
+  return ["🌤️",tr("Onbekend")];
+}
+function renderWeatherCard(record,stale=false){
+  if(!record)return;
+  const cfg=getWeatherSettings();
+  document.getElementById("weatherDashboardCard")?.classList.toggle("dashboard-section-hidden",cfg.enabled===false);
+  setText("weatherLocation",record.location||cfg.city||tr("Niet ingesteld"));
+  setText("weatherTemperature",Number.isFinite(Number(record.temperature))?`${Math.round(Number(record.temperature))}°C`:"--°C");
+  setText("weatherDescription",record.description||tr("Onbekend"));
+  setText("weatherRain",Number.isFinite(Number(record.rain))?`${Math.round(Number(record.rain))}%`:"--%");
+  setText("weatherWind",Number.isFinite(Number(record.wind))?`${Math.round(Number(record.wind))} km/u`:"-- km/u");
+  setText("weatherIcon",record.icon||"🌤️");
+  const stamp=record.timestamp?new Date(record.timestamp):null;
+  setText("weatherUpdated",stamp&&!Number.isNaN(stamp.getTime())?`${stale?tr("Laatst bekend")+" · ":""}${stamp.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}`:"--:--");
+}
+async function fetchWeather(force=false){
+  const cfg=getWeatherSettings();
+  const cached=(()=>{try{return JSON.parse(localStorage.getItem(WEATHER_CACHE_KEY)||"null");}catch(_){return null;}})();
+  if(cached)renderWeatherCard(cached,true);
+  if(cfg.enabled===false){document.getElementById("weatherDashboardCard")?.classList.add("dashboard-section-hidden");return;}
+  if(cfg.latitude==null||cfg.longitude==null){
+    setText("weatherLocation",cfg.city||tr("Niet ingesteld"));
+    setText("weatherDescription",tr("Locatie instellen"));
+    return;
+  }
+  const maxAge=(Number(cfg.interval)||30)*60000;
+  if(!force&&cached&&Date.now()-Number(cached.timestamp||0)<maxAge){renderWeatherCard(cached,false);return;}
+  try{
+    const url=`https://api.open-meteo.com/v1/forecast?latitude=${encodeURIComponent(cfg.latitude)}&longitude=${encodeURIComponent(cfg.longitude)}&current=temperature_2m,weather_code,wind_speed_10m&hourly=precipitation_probability&forecast_days=1&timezone=auto`;
+    const response=await fetch(url,{cache:"no-store"});
+    if(!response.ok)throw new Error("Weather HTTP "+response.status);
+    const data=await response.json();
+    const [icon,description]=weatherCodeInfo(data.current?.weather_code);
+    const now=Date.now(); let rain=0;
+    if(Array.isArray(data.hourly?.time)&&Array.isArray(data.hourly?.precipitation_probability)){
+      let best=0,bestDiff=Infinity;
+      data.hourly.time.forEach((t,i)=>{const diff=Math.abs(new Date(t).getTime()-now);if(diff<bestDiff){best=i;bestDiff=diff;}});
+      rain=Number(data.hourly.precipitation_probability[best]||0);
+    }
+    const record={location:[cfg.city,cfg.country].filter(Boolean).join(", "),temperature:Number(data.current?.temperature_2m),description,icon,rain,wind:Number(data.current?.wind_speed_10m),timestamp:Date.now()};
+    localStorage.setItem(WEATHER_CACHE_KEY,JSON.stringify(record)); renderWeatherCard(record,false);
+  }catch(error){console.warn("Weather update failed",error);if(!cached)showToast(tr("Weer kon niet worden bijgewerkt"),true);}
+}
+function scheduleWeatherRefresh(){
+  if(weatherRefreshTimer)clearInterval(weatherRefreshTimer);
+  const minutes=Math.max(15,Number(getWeatherSettings().interval||30));
+  weatherRefreshTimer=setInterval(()=>fetchWeather(true),minutes*60000);
+}
 
 /* ===== International, PWA and premium customization v2.0 ===== */
 let activeLanguage = "nl";
@@ -1765,7 +1986,12 @@ let deferredInstallPrompt = null;
 const originalTextNodes = new Map();
 const originalAttributes = new WeakMap();
 function browserLanguage(){const l=(navigator.language||"nl").slice(0,2).toLowerCase();return ["nl","en","de","fr"].includes(l)?l:"en";}
-function tr(source){ if(source===null||source===undefined)return ""; const s=String(source); return activeLanguage==="nl"?s:(languagePack._phrases?.[s]||s); }
+function tr(source){
+  if(source===null||source===undefined)return "";
+  const text=String(source);
+  if(activeLanguage==="nl") return text;
+  return languagePack[text] || languagePack._phrases?.[text] || text;
+}
 function rememberTextNode(node){ if(!originalTextNodes.has(node)) originalTextNodes.set(node,node.nodeValue); }
 function translateTextNode(node){
   rememberTextNode(node); const raw=originalTextNodes.get(node); const trimmed=raw.trim(); if(!trimmed)return;
@@ -1782,7 +2008,7 @@ async function applyLanguage(lang){
   activeLanguage=["nl","en","de","fr"].includes(lang)?lang:"en";
   document.documentElement.lang=activeLanguage;
   try{
-    const response=await fetch(`/lang/${activeLanguage}.json?v=3001`,{cache:"no-store"});
+    const response=await fetch(`/lang/${activeLanguage}.json?v=3216`,{cache:"no-store"});
     if(!response.ok) throw new Error(`Language file ${response.status}`);
     languagePack=await response.json();
   }catch(error){
@@ -1844,7 +2070,7 @@ render=function(){baseRender();
   updateSmartInsight();
 };
 const baseShowView=showView;
-showView=function(viewName){baseShowView(viewName);const titles={dashboard:"Bestway Lay-Z-Spa",planner:"Planner",history:"Historie",energy:"Energie",logs:"Diagnostiek",settings:"Instellingen",hardware:"Hardware",control:"Bedieningspaneel",personalization:"Interface aanpassen",info:"Informatie"};setText("pageTitle",tr(titles[viewName]||"Bestway Lay-Z-Spa"));setTimeout(()=>translateDom(document.querySelector(`#${viewName}View`)||document.body),0);};
+showView=function(viewName){baseShowView(viewName);const titles={dashboard:"Bestway Lay-Z-Spa",planner:"Planner",history:"Historie",energy:"Energie",logs:"Diagnostiek",settings:"Instellingen",hardware:"Hardware",control:"Bedieningspaneel",personalization:"Interface aanpassen",maintenance:"Onderhoud",info:"Informatie"};setText("pageTitle",tr(titles[viewName]||"Bestway Lay-Z-Spa"));setTimeout(()=>translateDom(document.querySelector(`#${viewName}View`)||document.body),0);};
 function updateLocalizedFileInputs(){
   document.querySelectorAll(".localized-file-input").forEach(wrapper=>{
     const input=wrapper.querySelector('input[type="file"]');
@@ -1864,5 +2090,34 @@ function initializeLocalizedFileInputs(){
   updateLocalizedFileInputs();
 }
 
+
+function initSettingsAccordions() {
+  document.querySelectorAll("#settingsView > .settings-card, #personalizationView > .settings-card").forEach((card, index) => {
+    if (card.dataset.accordionReady === "1") return;
+    const title = card.querySelector(":scope > .settings-title");
+    if (!title) return;
+    card.dataset.accordionReady = "1";
+    card.classList.add("settings-collapsible", "settings-collapsed");
+    title.setAttribute("role", "button");
+    title.setAttribute("tabindex", "0");
+    title.setAttribute("aria-expanded", "false");
+    const toggle = () => {
+      const collapsed = card.classList.toggle("settings-collapsed");
+      title.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    };
+    title.addEventListener("click", event => {
+      if (event.target.closest("button,input,select,label,a")) return;
+      toggle();
+    });
+    title.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggle(); }
+    });
+  });
+  const mqttPanel = document.getElementById("mqttSettingsPanel");
+  const mqttToggle = document.getElementById("mqttSettingsToggle");
+  if (mqttPanel) mqttPanel.hidden = true;
+  if (mqttToggle) { mqttToggle.classList.remove("open"); mqttToggle.setAttribute("aria-expanded","false"); }
+}
+
 const observer=new MutationObserver(mutations=>{for(const m of mutations){m.addedNodes.forEach(n=>{if(n.nodeType===Node.TEXT_NODE)translateTextNode(n);else if(n.nodeType===Node.ELEMENT_NODE)translateDom(n);});}});
-document.addEventListener("DOMContentLoaded",()=>{resetLiveControls();loadLanguageSettings();loadAppearanceSettings();loadWidgetSettings();applyDashboardOrder();loadDashboardOrderEditor();applyDashboardButtonOrder();loadDashboardButtonOrderEditor();initializeLocalizedFileInputs();loadWeatherSettings();fetchWeather();scheduleWeatherRefresh();const unitSelect=document.getElementById("temperatureUnit");if(unitSelect){unitSelect.addEventListener("change",()=>{preferredTemperatureUnit=unitSelect.value||"Celsius";localStorage.setItem("layzspaTemperatureUnit",preferredTemperatureUnit);applyTemperatureUnit();});}observer.observe(document.body,{childList:true,subtree:true});if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js?v=3001").catch(()=>{});});
+document.addEventListener("DOMContentLoaded",()=>{resetLiveControls();initSettingsAccordions();loadLanguageSettings();loadAppearanceSettings();loadWidgetSettings();applyDashboardOrder();loadDashboardOrderEditor();applyDashboardButtonOrder();loadDashboardButtonOrderEditor();initializeLocalizedFileInputs();loadWeatherSettings();loadMaintenance();fetchWeather();scheduleWeatherRefresh();const unitSelect=document.getElementById("temperatureUnit");if(unitSelect){unitSelect.addEventListener("change",()=>{preferredTemperatureUnit=unitSelect.value||"Celsius";localStorage.setItem("layzspaTemperatureUnit",preferredTemperatureUnit);applyTemperatureUnit();});}observer.observe(document.body,{childList:true,subtree:true});if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js?v=3216").catch(()=>{});});

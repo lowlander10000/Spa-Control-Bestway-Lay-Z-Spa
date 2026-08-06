@@ -2,14 +2,14 @@
 
 <html lang="nl">
 <head>
-<meta content="3.0.1" name="app-version"/>
+<meta content="3.2.0" name="app-version"/>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Spa Control</title>
-<link href="/css/app.css?v=3001" rel="stylesheet"/>
-<link href="/manifest.json?v=3001" rel="manifest"/>
-<link href="/icons/favicon-32.png?v=3001" rel="icon" sizes="32x32" type="image/png"/>
-<link href="/icons/apple-touch-icon.png?v=3001" rel="apple-touch-icon" sizes="180x180"/>
+<link href="/css/app.css?v=3215" rel="stylesheet"/>
+<link href="/manifest.json?v=3203" rel="manifest"/>
+<link href="/icons/favicon-32.png?v=3203" rel="icon" sizes="32x32" type="image/png"/>
+<link href="/icons/apple-touch-icon.png?v=3203" rel="apple-touch-icon" sizes="180x180"/>
 <meta content="Spa Control" name="apple-mobile-web-app-title"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="#050b14" name="theme-color"/>
@@ -37,8 +37,8 @@
 <article class="temperature-dashboard-card current-temperature-card" data-dashboard-card="currentTemperature" id="currentTemperatureCard">
 <div class="temperature-card-heading"><span class="temperature-card-icon">🌡️</span><span data-i18n="Huidige temperatuur">Huidige temperatuur</span></div>
 <strong class="temperature-card-value"><span id="temperature">--</span><span class="unit">°C</span></strong>
-<div class="temperature-card-status current-status" id="spaMode"><span>Stand-by</span><span class="status-check" aria-hidden="true">✓</span></div>
-<div class="temperature-wave" aria-hidden="true"><i></i><i></i><i></i></div>
+<div class="temperature-card-status current-status" id="spaMode"><span>Stand-by</span><span aria-hidden="true" class="status-check">✓</span></div>
+<div aria-hidden="true" class="temperature-wave"><i></i><i></i><i></i></div>
 <span class="visually-hidden" id="tempSmall">--</span><span class="visually-hidden" id="target">--</span>
 </article>
 <article class="temperature-dashboard-card target-temperature-card" data-dashboard-card="targetTemperature" id="targetTemperatureCard">
@@ -46,16 +46,16 @@
 <strong class="temperature-card-value"><span id="targetBig">--</span><span class="unit">°C</span></strong>
 <div class="temperature-card-controls">
 <button aria-label="Doeltemperatuur verlagen" onclick="setTarget(-1)">−</button>
-<span class="heater-control-icon" aria-hidden="true">🔥</span>
+<span aria-hidden="true" class="heater-control-icon">🔥</span>
 <button aria-label="Doeltemperatuur verhogen" onclick="setTarget(1)">+</button>
 </div>
 <div class="temperature-card-status target-status" id="targetHeatStatus">Verwarming: Uit</div>
-<div class="temperature-wave" aria-hidden="true"><i></i><i></i><i></i></div>
+<div aria-hidden="true" class="temperature-wave"><i></i><i></i><i></i></div>
 </article>
 <article class="weather-dashboard-card" data-dashboard-card="weather" id="weatherDashboardCard">
-  <div class="weather-card-head"><span class="weather-card-icon" id="weatherIcon">🌤️</span><div><small data-i18n="Weer">Weer</small><strong id="weatherLocation">Niet ingesteld</strong></div></div>
-  <div class="weather-card-main"><strong id="weatherTemperature">--°C</strong><span id="weatherDescription">Locatie instellen</span></div>
-  <div class="weather-card-details"><span>💧 <b id="weatherRain">--%</b></span><span>💨 <b id="weatherWind">-- km/u</b></span><span id="weatherUpdated">--:--</span></div>
+<div class="weather-card-head"><span class="weather-card-icon" id="weatherIcon">🌤️</span><div><small data-i18n="Weer">Weer</small><strong id="weatherLocation">Niet ingesteld</strong></div></div>
+<div class="weather-card-main"><strong id="weatherTemperature">--°C</strong><span id="weatherDescription">Locatie instellen</span></div>
+<div class="weather-card-details"><span>💧 <b id="weatherRain">--%</b></span><span>💨 <b id="weatherWind">-- km/u</b></span><span id="weatherUpdated">--:--</span></div>
 </article>
 <section class="premium-device-grid" data-dashboard-card="controls">
 <button class="premium-device heater" data-dashboard-button="heater" data-dashboard-button-order="heater" id="heater" onclick="toggleDevice('heater')">
@@ -99,6 +99,16 @@
 <button class="control-panel-button bubbles" id="controlBubbles" onclick="toggleDevice('bubbles')"><span>🫧</span><b>AirJet</b><small>OFF</small></button>
 <button class="control-panel-button jets" id="controlJets" onclick="toggleDevice('jets')"><span>🌊</span><b>HydroJets</b><small>OFF</small></button>
 </section>
+</section>
+
+<section class="view full-width-view" id="maintenanceView">
+<section class="page-head"><div><span class="kicker">Spa verzorging</span><h2>Onderhoud</h2><p>Houd filteronderhoud en chloor eenvoudig bij.</p></div><div class="maintenance-overall" id="maintenanceOverall">Laden…</div></section>
+<div class="maintenance-alert hidden" id="maintenanceAlert"></div>
+<div class="maintenance-grid">
+<section class="maintenance-card" data-maintenance-card="filterReplace"><div class="maintenance-card-head"><span class="maintenance-icon">🧰</span><div><h3>Filter vervangen</h3><p>Vervang het filter volgens jouw interval.</p></div><span class="maintenance-badge">--</span></div><div class="maintenance-dates"><div><small>Laatst</small><strong data-role="last">Nog niet geregistreerd</strong></div><div><small>Volgende keer</small><strong data-role="next">--</strong></div></div><label class="maintenance-setting"><span>Ingeschakeld</span><span class="ui-switch"><input checked="" id="filterReplaceEnabled" type="checkbox"/><i></i></span></label><label class="maintenance-setting"><span>Interval in dagen</span><input id="filterReplaceDays" max="3650" min="1" type="number" value="30"/></label><button class="primary-action" onclick="markMaintenanceDone('filterReplace')">✓ Vandaag vervangen</button></section>
+<section class="maintenance-card" data-maintenance-card="filterClean"><div class="maintenance-card-head"><span class="maintenance-icon">🧼</span><div><h3>Filter schoongemaakt</h3><p>Registreer iedere schoonmaakbeurt.</p></div><span class="maintenance-badge">--</span></div><div class="maintenance-dates"><div><small>Laatst</small><strong data-role="last">Nog niet geregistreerd</strong></div><div><small>Volgende keer</small><strong data-role="next">--</strong></div></div><label class="maintenance-setting"><span>Ingeschakeld</span><span class="ui-switch"><input checked="" id="filterCleanEnabled" type="checkbox"/><i></i></span></label><label class="maintenance-setting"><span>Interval in dagen</span><input id="filterCleanDays" max="3650" min="1" type="number" value="7"/></label><button class="primary-action" onclick="markMaintenanceDone('filterClean')">✓ Vandaag schoongemaakt</button></section>
+<section class="maintenance-card" data-maintenance-card="chlorine"><div class="maintenance-card-head"><span class="maintenance-icon">🧪</span><div><h3>Chloor toegevoegd</h3><p>Houd bij wanneer het water behandeld is.</p></div><span class="maintenance-badge">--</span></div><div class="maintenance-dates"><div><small>Laatst</small><strong data-role="last">Nog niet geregistreerd</strong></div><div><small>Volgende keer</small><strong data-role="next">--</strong></div></div><label class="maintenance-setting"><span>Ingeschakeld</span><span class="ui-switch"><input checked="" id="chlorineEnabled" type="checkbox"/><i></i></span></label><label class="maintenance-setting"><span>Interval in dagen</span><input id="chlorineDays" max="3650" min="1" type="number" value="3"/></label><button class="primary-action" onclick="markMaintenanceDone('chlorine')">✓ Vandaag toegevoegd</button></section>
+</div><button class="primary-action maintenance-save" onclick="saveMaintenanceSettings()">💾 Onderhoudsinstellingen opslaan</button>
 </section>
 <section class="view" id="personalizationView">
 <section class="page-head"><div><span class="kicker">Webinterface</span><h2>Interface aanpassen</h2><p>Kies de dashboardonderdelen en navigatie die je wilt gebruiken.</p></div></section>
@@ -163,16 +173,22 @@
 <section class="settings-card">
 <div class="settings-title"><span class="settings-icon">📱</span><div><h2>Onderste navigatiebalk</h2><p>Verberg de balk volledig of kies welke tabbladen erin staan. Alle pagina's blijven via ☰ bereikbaar.</p></div></div>
 <div class="dashboard-section-settings single-option"><label><input checked="" id="bottomNavEnabled" type="checkbox"/> Onderste balk tonen</label></div>
-<div class="dashboard-button-settings nav-visibility-settings">
-<label><input checked="" data-nav-setting="dashboard" type="checkbox"/> Dashboard</label>
-<label><input checked="" data-nav-setting="control" type="checkbox"/> Bediening</label>
-<label><input checked="" data-nav-setting="planner" type="checkbox"/> Planner</label>
-<label><input checked="" data-nav-setting="history" type="checkbox"/> Historie</label>
-<label><input checked="" data-nav-setting="energy" type="checkbox"/> Energie</label>
-<label><input checked="" data-nav-setting="logs" type="checkbox"/> Diagnostiek</label>
-<label><input checked="" data-nav-setting="settings" type="checkbox"/> Instellingen</label>
+<div class="dashboard-order-list navigation-order-list" id="navigationOrderList">
+<div class="dashboard-order-item navigation-order-item" data-nav-order="dashboard"><span class="drag-handle">☰</span><span class="navigation-order-icon">🏠</span><span class="navigation-order-name">Dashboard</span><label class="navigation-order-toggle"><input checked="" data-nav-setting="dashboard" type="checkbox"/><span>Zichtbaar</span></label></div>
+<div class="dashboard-order-item navigation-order-item" data-nav-order="control"><span class="drag-handle">☰</span><span class="navigation-order-icon">🎛️</span><span class="navigation-order-name">Bediening</span><label class="navigation-order-toggle"><input checked="" data-nav-setting="control" type="checkbox"/><span>Zichtbaar</span></label></div>
+<div class="dashboard-order-item navigation-order-item" data-nav-order="planner"><span class="drag-handle">☰</span><span class="navigation-order-icon">📅</span><span class="navigation-order-name">Planner</span><label class="navigation-order-toggle"><input checked="" data-nav-setting="planner" type="checkbox"/><span>Zichtbaar</span></label></div>
+<div class="dashboard-order-item navigation-order-item" data-nav-order="history"><span class="drag-handle">☰</span><span class="navigation-order-icon">📈</span><span class="navigation-order-name">Historie</span><label class="navigation-order-toggle"><input checked="" data-nav-setting="history" type="checkbox"/><span>Zichtbaar</span></label></div>
+<div class="dashboard-order-item navigation-order-item" data-nav-order="energy"><span class="drag-handle">☰</span><span class="navigation-order-icon">⚡</span><span class="navigation-order-name">Energie</span><label class="navigation-order-toggle"><input checked="" data-nav-setting="energy" type="checkbox"/><span>Zichtbaar</span></label></div>
+
+<div class="dashboard-order-item navigation-order-item" data-nav-order="logs"><span class="drag-handle">☰</span><span class="navigation-order-icon">📜</span><span class="navigation-order-name">Diagnostiek</span><label class="navigation-order-toggle"><input checked="" data-nav-setting="logs" type="checkbox"/><span>Zichtbaar</span></label></div>
+<div class="dashboard-order-item navigation-order-item" data-nav-order="maintenance"><span class="drag-handle">☰</span><span class="navigation-order-icon">🧰</span><span class="navigation-order-name">Onderhoud</span><label class="navigation-order-toggle"><input checked="" data-nav-setting="maintenance" type="checkbox"/><span>Zichtbaar</span></label></div>
+<div class="dashboard-order-item navigation-order-item" data-nav-order="settings"><span class="drag-handle">☰</span><span class="navigation-order-icon">⚙️</span><span class="navigation-order-name">Instellingen</span><label class="navigation-order-toggle"><input checked="" data-nav-setting="settings" type="checkbox"/><span>Zichtbaar</span></label></div>
+<div class="dashboard-order-item navigation-order-item" data-nav-order="info"><span class="drag-handle">☰</span><span class="navigation-order-icon">ℹ️</span><span class="navigation-order-name">Info</span><label class="navigation-order-toggle"><input checked="" data-nav-setting="info" type="checkbox"/><span>Zichtbaar</span></label></div>
 </div>
-<button class="primary-action" onclick="saveNavigationSettings()" style="width:100%;margin-top:12px;">Navigatie opslaan</button>
+<div class="interface-actions dashboard-order-actions">
+<button class="secondary-action" onclick="resetNavigationOrder()">Standaardvolgorde</button>
+<button class="primary-action" onclick="saveNavigationSettings()">Navigatie opslaan</button>
+</div>
 </section>
 <section class="settings-card">
 <div class="settings-title"><span class="settings-icon">🎨</span><div><h2 data-i18n="appearance">Weergave</h2><p data-i18n="appearanceHelp">Kies accentkleur, animaties en kaartweergave.</p></div></div>
@@ -184,7 +200,7 @@
 <div class="settings-title"><span class="settings-icon">🧩</span><div><h2 data-i18n="widgets">Dashboardwidgets</h2><p data-i18n="widgetsHelp">Toon of verberg slimme statusinformatie.</p></div></div>
 <label class="toggle-setting"><input checked="" id="smartInsightEnabled" onchange="saveWidgetSettings()" type="checkbox"/><span data-i18n="smartStatus">Slimme status</span></label>
 </section>
-</section><section class="view" id="settingsView">
+</section><section class="view full-width-view" id="settingsView">
 <section class="settings-card international-card">
 <div class="settings-title"><span class="settings-icon">🌍</span><div><h2 data-i18n="language">Taal</h2><p data-i18n="languageHelp">Kies de taal van de webinterface.</p></div></div>
 <label class="setting-field"><span data-i18n="languageMode">Taalinstelling</span><select id="languageMode" onchange="languageModeChanged()"><option data-i18n="followBrowser" value="browser">Volg browsertaal</option><option data-i18n="manualChoice" value="manual">Handmatig kiezen</option></select></label>
@@ -192,7 +208,7 @@
 </section>
 <section class="settings-card">
 <div class="settings-title"><span class="settings-icon">ℹ️</span><div><h2 data-i18n="Informatie">Informatie</h2><p data-i18n="Versies en systeeminformatie van de spa-controller.">Versies en systeeminformatie van de spa-controller.</p></div></div>
-<button class="primary-action" onclick="showView('info')" style="width:100%" data-i18n="Informatie openen">Informatie openen</button>
+<button class="primary-action" data-i18n="Informatie openen" onclick="showView('info')" style="width:100%">Informatie openen</button>
 </section>
 <section class="settings-card">
 <div class="settings-title">
@@ -245,24 +261,70 @@
     WiFi vergeten
 </button>
 </section>
-<section class="settings-card">
-<div class="settings-title">
+<section class="settings-card mqtt-settings-card settings-wide-card">
+<div class="settings-title mqtt-settings-title">
 <span class="settings-icon">☁️</span>
 <div>
 <h2>MQTT</h2>
-<p>Brokerinstellingen</p>
+<p>Verbind Spa Control met Home Assistant of een andere MQTT-broker.</p>
 </div>
+</div><button aria-controls="mqttSettingsPanel" aria-expanded="false" class="mqtt-collapse-toggle" id="mqttSettingsToggle" onclick="toggleMqttSettings()" type="button"><span class="mqtt-collapse-icon">☁️</span><span class="mqtt-collapse-copy"><b>MQTT-instellingen</b><small>Broker, integratie en publicatietopics</small></span><span class="mqtt-collapse-chevron">⌄</span></button><div class="mqtt-settings-panel" hidden="" id="mqttSettingsPanel">
+<label class="mqtt-master-switch" for="mqttEnabled">
+<span>
+<strong>MQTT inschakelen</strong>
+<small>Publiceer spa-gegevens en ontvang opdrachten.</small>
+</span>
+<span class="ui-switch"><input id="mqttEnabled" type="checkbox"/><i></i></span>
+</label>
+<div class="mqtt-section-heading">
+<span>🔗</span>
+<div><strong>Brokerverbinding</strong><small>De gegevens van jouw MQTT-server.</small></div>
 </div>
-<label><input id="mqttEnabled" type="checkbox"/> MQTT ingeschakeld</label><br/><br/>
-<label>Broker</label><input id="mqttHost" style="width:100%;" type="text"/>
-<label>Poort</label><input id="mqttPort" style="width:100%;" type="number" value="1883"/>
-<label>Gebruikersnaam</label><input id="mqttUser" style="width:100%;" type="text"/>
-<label>Wachtwoord</label><input id="mqttPassword" style="width:100%;" type="password"/>
-<label>Client-ID</label><input id="mqttClientId" style="width:100%;" type="text" value="LayZSpaController"/>
-<label>Base Topic</label><input id="mqttBaseTopic" style="width:100%;" type="text" value="layzspa"/>
-<label><input checked="" id="mqttDiscovery" type="checkbox"/> Home Assistant Discovery</label>
-<button class="primary-action" onclick="saveMqttSettings()" style="margin-top:12px;width:100%;">Opslaan</button>
-</section>
+<div class="mqtt-form-grid">
+<label class="mqtt-field mqtt-field-wide">
+<span>Broker of IP-adres</span>
+<input autocomplete="off" id="mqttHost" placeholder="192.168.1.10" type="text"/>
+</label>
+<label class="mqtt-field">
+<span>Poort</span>
+<input id="mqttPort" inputmode="numeric" max="65535" min="1" type="number" value="1883"/>
+</label>
+<label class="mqtt-field">
+<span>Client-ID</span>
+<input autocomplete="off" id="mqttClientId" type="text" value="LayZSpaController"/>
+</label>
+<label class="mqtt-field">
+<span>Gebruikersnaam</span>
+<input autocomplete="username" id="mqttUser" type="text"/>
+</label>
+<label class="mqtt-field">
+<span>Wachtwoord</span>
+<input autocomplete="current-password" id="mqttPassword" placeholder="Ongewijzigd laten indien leeg" type="password"/>
+</label>
+</div>
+<div class="mqtt-section-heading">
+<span>📡</span>
+<div><strong>Topics en integratie</strong><small>Bepaal de basisnaam en automatische Home Assistant-koppeling.</small></div>
+</div>
+<div class="mqtt-form-grid">
+<label class="mqtt-field mqtt-field-wide">
+<span>Base Topic</span>
+<input autocomplete="off" id="mqttBaseTopic" placeholder="layzspa" type="text" value="layzspa"/>
+<small class="mqtt-field-help">Voorbeeld: <b>layzspa</b>/status</small>
+</label>
+</div>
+<label class="mqtt-option-card" for="mqttDiscovery">
+<span class="mqtt-option-icon">🏠</span>
+<span class="mqtt-option-copy">
+<strong>Home Assistant Discovery</strong>
+<small>Laat Home Assistant Spa Control automatisch herkennen.</small>
+</span>
+<span class="ui-switch"><input checked="" id="mqttDiscovery" type="checkbox"/><i></i></span>
+</label>
+<div class="mqtt-section-heading"><span>📤</span><div><strong>Publicaties</strong><small>Zet ieder topic aan of uit en pas de naam achter het Base Topic aan.</small></div></div><div class="mqtt-publication-grid"><label class="mqtt-publication-card" for="publishTemperature"><span class="mqtt-publication-head"><span class="mqtt-option-icon">🌡️</span><span><strong>Watertemperatuur</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishTemperature" type="checkbox"/><i></i></span></span><input aria-label="Topic Watertemperatuur" id="topicTemperature" type="text" value="temperature"/></label><label class="mqtt-publication-card" for="publishTarget"><span class="mqtt-publication-head"><span class="mqtt-option-icon">🎯</span><span><strong>Doeltemperatuur</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishTarget" type="checkbox"/><i></i></span></span><input aria-label="Topic Doeltemperatuur" id="topicTarget" type="text" value="target/state"/></label><label class="mqtt-publication-card" for="publishPower"><span class="mqtt-publication-head"><span class="mqtt-option-icon">⏻</span><span><strong>Spa aan/uit</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishPower" type="checkbox"/><i></i></span></span><input aria-label="Topic Spa aan/uit" id="topicPower" type="text" value="power/state"/></label><label class="mqtt-publication-card" for="publishHeater"><span class="mqtt-publication-head"><span class="mqtt-option-icon">🔥</span><span><strong>Heater ingeschakeld</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishHeater" type="checkbox"/><i></i></span></span><input aria-label="Topic Heater ingeschakeld" id="topicHeater" type="text" value="heater/state"/></label><label class="mqtt-publication-card" for="publishHeatingActive"><span class="mqtt-publication-head"><span class="mqtt-option-icon">♨️</span><span><strong>Daadwerkelijk verwarmen</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishHeatingActive" type="checkbox"/><i></i></span></span><input aria-label="Topic Daadwerkelijk verwarmen" id="topicHeatingActive" type="text" value="heater/active"/></label><label class="mqtt-publication-card" for="publishFilter"><span class="mqtt-publication-head"><span class="mqtt-option-icon">💧</span><span><strong>Filter</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishFilter" type="checkbox"/><i></i></span></span><input aria-label="Topic Filter" id="topicFilter" type="text" value="filter/state"/></label><label class="mqtt-publication-card" for="publishBubbles"><span class="mqtt-publication-head"><span class="mqtt-option-icon">🫧</span><span><strong>Bubbels</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishBubbles" type="checkbox"/><i></i></span></span><input aria-label="Topic Bubbels" id="topicBubbles" type="text" value="bubbles/state"/></label><label class="mqtt-publication-card" for="publishJets"><span class="mqtt-publication-head"><span class="mqtt-option-icon">🌊</span><span><strong>Jets</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishJets" type="checkbox"/><i></i></span></span><input aria-label="Topic Jets" id="topicJets" type="text" value="jets/state"/></label><label class="mqtt-publication-card" for="publishLocked"><span class="mqtt-publication-head"><span class="mqtt-option-icon">🔒</span><span><strong>Vergrendeling</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishLocked" type="checkbox"/><i></i></span></span><input aria-label="Topic Vergrendeling" id="topicLocked" type="text" value="lock/state"/></label><label class="mqtt-publication-card" for="publishConnected"><span class="mqtt-publication-head"><span class="mqtt-option-icon">🔗</span><span><strong>Spa verbonden</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishConnected" type="checkbox"/><i></i></span></span><input aria-label="Topic Spa verbonden" id="topicConnected" type="text" value="spa/connected"/></label><label class="mqtt-publication-card" for="publishReady"><span class="mqtt-publication-head"><span class="mqtt-option-icon">✅</span><span><strong>Spa gebruiksklaar</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishReady" type="checkbox"/><i></i></span></span><input aria-label="Topic Spa gebruiksklaar" id="topicReady" type="text" value="spa/ready"/></label><label class="mqtt-publication-card" for="publishRssi"><span class="mqtt-publication-head"><span class="mqtt-option-icon">📶</span><span><strong>WiFi-signaal</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishRssi" type="checkbox"/><i></i></span></span><input aria-label="Topic WiFi-signaal" id="topicRssi" type="text" value="system/rssi"/></label><label class="mqtt-publication-card" for="publishHeap"><span class="mqtt-publication-head"><span class="mqtt-option-icon">💾</span><span><strong>Vrij geheugen</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishHeap" type="checkbox"/><i></i></span></span><input aria-label="Topic Vrij geheugen" id="topicHeap" type="text" value="system/free_heap"/></label><label class="mqtt-publication-card" for="publishUptime"><span class="mqtt-publication-head"><span class="mqtt-option-icon">⏱️</span><span><strong>Uptime</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishUptime" type="checkbox"/><i></i></span></span><input aria-label="Topic Uptime" id="topicUptime" type="text" value="system/uptime"/></label><label class="mqtt-publication-card" for="publishFirmware"><span class="mqtt-publication-head"><span class="mqtt-option-icon">📦</span><span><strong>Firmwareversie</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishFirmware" type="checkbox"/><i></i></span></span><input aria-label="Topic Firmwareversie" id="topicFirmware" type="text" value="system/firmware"/></label><label class="mqtt-publication-card" for="publishIp"><span class="mqtt-publication-head"><span class="mqtt-option-icon">🌐</span><span><strong>IP-adres</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishIp" type="checkbox"/><i></i></span></span><input aria-label="Topic IP-adres" id="topicIp" type="text" value="system/ip"/></label><label class="mqtt-publication-card" for="publishJson"><span class="mqtt-publication-head"><span class="mqtt-option-icon">{ }</span><span><strong>Volledige JSON-status</strong><small>Retained statusbericht.</small></span><span class="ui-switch"><input id="publishJson" type="checkbox"/><i></i></span></span><input aria-label="Topic Volledige JSON-status" id="topicJson" type="text" value="state"/></label><label class="mqtt-publication-card" for="publishMaintenance"><span class="mqtt-publication-head"><span class="mqtt-option-icon">🧰</span><span><strong>Onderhoudsstatus</strong><small>Publiceert alle onderhoudsdatums, resterende dagen en meldstatus.</small></span><span class="ui-switch"><input id="publishMaintenance" type="checkbox"/><i></i></span></span><input aria-label="Topic Onderhoudsstatus" id="topicMaintenance" type="text" value="maintenance"/></label></div><button class="secondary-action mqtt-default-button" onclick="resetMqttPublicationDefaults()" type="button">Standaardtopics herstellen</button><button class="primary-action mqtt-save-button" onclick="saveMqttSettings()">
+<span>💾</span> MQTT-instellingen opslaan
+</button>
+</div></section>
 <section class="settings-card">
 <div class="settings-title">
 <span class="settings-icon">🌍</span>
@@ -281,15 +343,15 @@
 </select>
 <label><input checked="" id="clock24" type="checkbox"/> 24-uursnotatie</label>
 <div class="weather-settings-block">
-  <div class="settings-subtitle" data-i18n="Weer">Weer</div>
-  <label data-i18n="Plaats">Plaats</label>
-  <input id="weatherCity" style="width:100%;" type="text" placeholder="Putten"/>
-  <label data-i18n="Land">Land</label>
-  <input id="weatherCountry" maxlength="2" style="width:100%;text-transform:uppercase;" type="text" placeholder="NL"/>
-  <label data-i18n="Update-interval">Update-interval</label>
-  <select id="weatherInterval" style="width:100%;"><option data-i18n="15 minuten" value="15">15 minuten</option><option data-i18n="30 minuten" value="30">30 minuten</option><option data-i18n="60 minuten" value="60">60 minuten</option></select>
-  <label><input checked="" id="weatherEnabled" type="checkbox"/> <span data-i18n="Weerkaart inschakelen">Weerkaart inschakelen</span></label>
-  <div class="weather-location-actions"><button class="secondary-action" onclick="searchWeatherLocation()" type="button" data-i18n="Zoek locatie">Zoek locatie</button><span id="weatherLocationResult">--</span></div>
+<div class="settings-subtitle" data-i18n="Weer">Weer</div>
+<label data-i18n="Plaats">Plaats</label>
+<input id="weatherCity" placeholder="Putten" style="width:100%;" type="text"/>
+<label data-i18n="Land">Land</label>
+<input id="weatherCountry" maxlength="2" placeholder="NL" style="width:100%;text-transform:uppercase;" type="text"/>
+<label data-i18n="Update-interval">Update-interval</label>
+<select id="weatherInterval" style="width:100%;"><option data-i18n="15 minuten" value="15">15 minuten</option><option data-i18n="30 minuten" value="30">30 minuten</option><option data-i18n="60 minuten" value="60">60 minuten</option></select>
+<label><input checked="" id="weatherEnabled" type="checkbox"/> <span data-i18n="Weerkaart inschakelen">Weerkaart inschakelen</span></label>
+<div class="weather-location-actions"><button class="secondary-action" data-i18n="Zoek locatie" onclick="searchWeatherLocation()" type="button">Zoek locatie</button><span id="weatherLocationResult">--</span></div>
 </div>
 <br/>
 <button class="primary-action" onclick="saveRegionalSettings()" style="margin-top:12px;width:100%;">
@@ -297,7 +359,7 @@ Opslaan
 </button>
 </section>
 <section class="settings-card"><div class="settings-title"><span class="settings-icon">🎨</span><div><h2>Webinterface</h2><p>Dashboard en navigatie aanpassen</p></div></div><button class="primary-action" onclick="showView('personalization')" style="width:100%;">Interface aanpassen</button></section><section class="settings-card"><div class="settings-title"><span class="settings-icon">🧩</span><div><h2>Hardware</h2><p>CIO, display, printplaat en GPIO instellen</p></div></div><button class="primary-action" onclick="showView('hardware')" style="width:100%;">Hardware configureren</button></section>
-<section class="settings-card backup-card"><div class="settings-title"><span class="settings-icon">💾</span><div><h2>Back-up &amp; herstel</h2><p>Instellingen, planner en energieconfiguratie</p></div></div><div class="toolbar"><button class="primary-action" onclick="exportBackup()">Back-up downloaden</button><label class="secondary-action file-button">Back-up herstellen<input accept="application/json,.json" id="backupFile" onchange="importBackup(event)" type="file"/></label></div></section>
+<section class="settings-card backup-card"><div class="settings-title"><span class="settings-icon">💾</span><div><h2>Back-up &amp; herstel</h2><p>Alle instellingen, onderhoud, planner, energie en interface</p></div></div><div class="toolbar"><button class="primary-action" onclick="exportBackup()">Back-up downloaden</button><label class="secondary-action file-button">Back-up herstellen<input accept="application/json,.json" id="backupFile" onchange="importBackup(event)" type="file"/></label></div></section>
 <section class="settings-card">
 <div class="settings-title">
 <span class="settings-icon">🔄</span>
@@ -327,7 +389,6 @@ Opslaan
 <div class="settings-row"><span>Voortgang LittleFS</span><b id="fsOtaPercent">0%</b></div>
 <button class="primary-action" onclick="startFilesystemUpload()" style="margin-top:12px;width:100%;">LittleFS uploaden</button>
 </section>
-
 </section>
 <section class="view" id="hardwareView">
 <section class="page-head"><div><span class="kicker">Bestway Lay-Z-Spa</span><h2>Hardware</h2><p>CIO, display, printplaat en GPIO-instellingen</p></div></section>
@@ -351,8 +412,11 @@ Opslaan
 </div>
 <label class="toggle-line"><input id="hwTempSensor" type="checkbox"/> Externe OneWire-temperatuursensor gebruiken</label>
 </section>
+<section class="settings-card">
+<button class="primary-action" onclick="saveHardwareSettings()" style="width:100%;" type="button">Hardware opslaan</button>
+<p class="hint">Nieuwe hardware-instellingen worden na een herstart actief.</p>
 </section>
-
+</section>
 <section class="view" id="plannerView"><section class="settings-card"><div class="settings-title"><span class="settings-icon">📅</span><div><h2>Planner</h2><p>Weekprogramma</p></div></div><div class="planner-actions"><button class="primary-action" onclick="openScheduleModal()">+ Schema toevoegen</button><button class="secondary-action" onclick="deleteSelectedSchedules()">Aangevinkte verwijderen</button></div><div id="plannerGrid"><div class="settings-card"><h3>Maandag</h3><div class="schedule-list" id="day-maandag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Dinsdag</h3><div class="schedule-list" id="day-dinsdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Woensdag</h3><div class="schedule-list" id="day-woensdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Donderdag</h3><div class="schedule-list" id="day-donderdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Vrijdag</h3><div class="schedule-list" id="day-vrijdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Zaterdag</h3><div class="schedule-list" id="day-zaterdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Zondag</h3><div class="schedule-list" id="day-zondag"><em>Nog geen schema's</em></div></div></div></section></section>
 <section class="view" id="historyView">
 <section class="page-head">
@@ -403,11 +467,13 @@ Opslaan
 <article><span>Spa</span><strong id="diagSpa">--</strong><small id="diagSpaData">--</small></article>
 <article><span data-i18n="Vrij geheugen">Vrij geheugen</span><strong id="diagHeap">--</strong><small id="diagFragmentation">--</small></article>
 <article><span>LittleFS</span><strong id="diagFs">--</strong><small id="diagFsUsage">--</small></article>
+
+<article><span>OTA</span><strong id="diagOta">--</strong><small id="diagOtaError">Geen fout gemeld</small></article>
+<article><span>MQTT reconnects</span><strong id="diagMqttReconnects">0</strong><small id="diagMqttError">Geen fout gemeld</small></article>
 </section>
-<section class="page-head compact-head"><div><span class="kicker">Diagnostiek</span><h2>Logboek</h2><p>Gebeurtenissen en waarschuwingen</p></div><div class="toolbar"><select id="logFilter" onchange="renderLogs()"><option value="ALL">Alles</option><option value="INFO">Info</option><option value="WARN">Waarschuwingen</option><option value="ERROR">Fouten</option></select><button class="secondary-action compact" onclick="clearLogs()">Wissen</button></div></section>
+<section class="page-head compact-head"><div><span class="kicker">Diagnostiek</span><h2>Live logboek</h2><p>Gebeurtenissen en foutdetails via het netwerk</p></div><div class="toolbar"><label class="live-log-toggle"><input checked="" id="liveLogEnabled" onchange="updateLiveLogState()" type="checkbox"/><span>Live volgen</span></label><select id="logFilter" onchange="renderLogs()"><option value="ALL">Alles</option><option value="INFO">Info</option><option value="WARN">Waarschuwingen</option><option value="ERROR">Fouten</option></select><button class="secondary-action compact" onclick="loadLogs()">Verversen</button><button class="secondary-action compact" onclick="clearLogs()">Wissen</button></div></section>
 <section class="log-card"><div class="log-list" id="logList"><div class="empty-state">Logboek laden...</div></div></section>
 </section>
-
 <section class="view" id="infoView">
 <section class="page-head"><div><h2 data-i18n="Informatie">Informatie</h2><p data-i18n="Versies en systeeminformatie van de controller.">Versies en systeeminformatie van de controller.</p></div></section>
 <section class="info-identity-card">
@@ -415,8 +481,8 @@ Opslaan
 <div><span class="kicker">Bestway Lay-Z-Spa</span><h2 data-i18n="Premium Spa Control">Premium Spa Control</h2></div>
 </section>
 <section class="info-grid">
-<article><span data-i18n="Firmware">Firmware</span><strong>v3.0.1</strong><small data-i18n="Stabiele release">Stabiele release</small></article>
-<article><span data-i18n="Webinterface">Webinterface</span><strong>v3.0.1</strong><small>LittleFS</small></article>
+<article><span data-i18n="Firmware">Firmware</span><strong>v3.2.0</strong><small>Final stable release</small></article>
+<article><span data-i18n="Webinterface">Webinterface</span><strong>v3.2.0</strong><small>LittleFS</small></article>
 </section>
 <section class="settings-card">
 <div class="settings-title">
@@ -455,8 +521,8 @@ Opslaan
 <b id="settingsResetReason">--</b>
 </div>
 <button class="secondary-action" onclick="restartEsp()" style="margin-top:16px;width:100%;">
-          <span data-i18n="ESP opnieuw opstarten">ESP opnieuw opstarten</span>
-        </button>
+<span data-i18n="ESP opnieuw opstarten">ESP opnieuw opstarten</span>
+</button>
 </section>
 </section>
 <div class="app-menu-backdrop" id="appMenuBackdrop" onclick="closeAppMenu()"></div>
@@ -467,12 +533,14 @@ Opslaan
 <button onclick="openMenuView('control')">🎛️ <span>Bediening</span></button>
 <button onclick="openMenuView('planner')">📅 <span>Planner</span></button>
 <button onclick="openMenuView('history')">📈 <span>Historie</span></button>
+
 <button onclick="openMenuView('energy')">⚡ <span>Energie</span></button>
 <button onclick="openMenuView('logs')">📜 <span>Diagnostiek</span></button>
+<button onclick="openMenuView('maintenance')">🧰 <span>Onderhoud</span></button>
 <button onclick="openMenuView('hardware')">🔌 <span>Hardware</span></button>
 <button onclick="openMenuView('personalization')">🎨 <span>Interface aanpassen</span></button><button onclick="openMenuView('info')">ℹ️ <span>Info</span></button><button onclick="openMenuView('settings')">⚙️ <span>Instellingen</span></button>
 </div></aside>
-<nav class="bottom-nav" id="bottomNav"><button class="selected" id="navDashboard" onclick="showView('dashboard')"><span>🏠</span><small>Dashboard</small></button><button id="navControl" onclick="showView('control')"><span>🎛️</span><small>Bediening</small></button><button id="navPlanner" onclick="showView('planner')"><span>📅</span><small>Planner</small></button><button id="navHistory" onclick="showView('history')"><span>📈</span><small>Historie</small></button><button id="navEnergy" onclick="showView('energy')"><span>⚡</span><small>Energie</small></button><button id="navLogs" onclick="showView('logs')"><span>📜</span><small>Diagnostiek</small></button><button id="navSettings" onclick="showView('settings')"><span>⚙️</span><small>Instellingen</small></button></nav>
+<nav class="bottom-nav" id="bottomNav"><button class="selected" id="navDashboard" onclick="showView('dashboard')"><span>🏠</span><small>Dashboard</small></button><button id="navControl" onclick="showView('control')"><span>🎛️</span><small>Bediening</small></button><button id="navPlanner" onclick="showView('planner')"><span>📅</span><small>Planner</small></button><button id="navHistory" onclick="showView('history')"><span>📈</span><small>Historie</small></button><button id="navEnergy" onclick="showView('energy')"><span>⚡</span><small>Energie</small></button><button id="navLogs" onclick="showView('logs')"><span>📜</span><small>Diagnostiek</small></button><button id="navMaintenance" onclick="showView('maintenance')"><span>🧰</span><small>Onderhoud</small></button><button id="navSettings" onclick="showView('settings')"><span>⚙️</span><small>Instellingen</small></button><button id="navInfo" onclick="showView('info')"><span>ℹ️</span><small>Info</small></button></nav>
 </main>
 <div aria-hidden="true" class="modal-backdrop" id="wifiModal">
 <div class="modal">
@@ -553,6 +621,6 @@ Opslaan
 </div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="/js/app.js?v=3001"></script>
+<script src="/js/app.js?v=3218"></script>
 </body>
 </html>

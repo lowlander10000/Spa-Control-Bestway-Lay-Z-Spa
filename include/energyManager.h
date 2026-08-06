@@ -17,6 +17,7 @@ public:
   double estimatedCost() const;
   String toJson() const;
   bool reset();
+  bool restoreTotals(double heaterHours, double filterHours, double bubblesHours, double jetsHours);
 private:
   static constexpr const char* ENERGY_FILE = "/energy.dat";
   static constexpr unsigned long SAVE_INTERVAL_MS = 15UL * 60UL * 1000UL;

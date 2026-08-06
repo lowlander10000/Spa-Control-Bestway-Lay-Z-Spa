@@ -22,7 +22,7 @@ double EnergyManager::totalKwh() const {
 }
 double EnergyManager::estimatedCost() const { return totalKwh()*settingsManager.energy().pricePerKwh; }
 String EnergyManager::toJson() const {
-  String j="{";
+  String j; j.reserve(320); j="{";
   j += "\"heaterHours\":"+String(totals_.heaterMs/3600000.0,3);
   j += ",\"filterHours\":"+String(totals_.filterMs/3600000.0,3);
   j += ",\"bubblesHours\":"+String(totals_.bubblesMs/3600000.0,3);
@@ -40,5 +40,11 @@ String EnergyManager::toJson() const {
   return j;
 }
 bool EnergyManager::reset() { totals_=EnergyTotals{}; if(LittleFS.exists(ENERGY_FILE)) LittleFS.remove(ENERGY_FILE); return save(); }
+bool EnergyManager::restoreTotals(double heaterHours, double filterHours, double bubblesHours, double jetsHours) {
+  auto toMs=[](double hours)->uint64_t { if(hours<0) hours=0; return static_cast<uint64_t>(hours*3600000.0); };
+  totals_.heaterMs=toMs(heaterHours); totals_.filterMs=toMs(filterHours);
+  totals_.bubblesMs=toMs(bubblesHours); totals_.jetsMs=toMs(jetsHours);
+  return save();
+}
 bool EnergyManager::load() { File f=LittleFS.open(ENERGY_FILE,"r"); if(!f) return false; EnergyFile d{}; bool ok=f.read((uint8_t*)&d,sizeof(d))==sizeof(d)&&d.magic==MAGIC&&d.version==VERSION; f.close(); if(ok) totals_=d.totals; return ok; }
 bool EnergyManager::save() { File f=LittleFS.open(ENERGY_FILE,"w"); if(!f) return false; EnergyFile d{MAGIC,VERSION,totals_}; bool ok=f.write((const uint8_t*)&d,sizeof(d))==sizeof(d); f.close(); return ok; }

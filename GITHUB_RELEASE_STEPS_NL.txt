@@ -1,0 +1,24 @@
+GITHUB RELEASE v3.2.0
+
+1. Test lokaal:
+   - PlatformIO: Clean
+   - Build
+   - Build Filesystem Image
+   - Firmware en LittleFS op de ESP testen
+
+2. Upload de INHOUD van deze projectmap naar de hoofdbranch van GitHub.
+   platformio.ini moet dus direct in de hoofdmap van de repository staan.
+
+3. Maak en push daarna tag v3.2.0:
+   git tag -a v3.2.0 -m "Spa Control v3.2.0"
+   git push origin v3.2.0
+
+4. De workflow .github/workflows/release.yml bouwt automatisch:
+   - Spa_Control_v3.2.0_firmware.bin
+   - Spa_Control_v3.2.0_littlefs.bin
+   - Spa_Control_v3.2.0_FULL.zip
+   - SHA256SUMS.txt
+
+5. De workflow maakt vervolgens automatisch de GitHub Release v3.2.0 aan.
+
+Controleer na afloop onder GitHub > Actions of de build groen is en onder Releases of alle vier assets aanwezig zijn.

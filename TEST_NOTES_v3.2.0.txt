@@ -1,0 +1,37 @@
+Spa Control v3.2.0 TEST
+
+Nieuwe functies
+- 15 configureerbare MQTT-statuspublicaties.
+- Ieder status-topic afzonderlijk aan/uit te zetten.
+- Topic-suffix per status zelf instelbaar achter het Base Topic.
+- MQTT-instellingen zorgen automatisch voor opnieuw verbinden en opnieuw publiceren.
+- Onderste navigatietabbladen via slepen in eigen volgorde te zetten.
+- Tabbladen blijven afzonderlijk zichtbaar/verborgen instelbaar.
+
+Standaard ingeschakeld
+- temperatuur
+- doeltemperatuur
+- heater status
+- actief verwarmen
+- filter
+- bubbels
+- jets
+- power
+- spa verbonden
+- volledige JSON-status
+
+Standaard uitgeschakeld
+- vergrendeling
+- timer
+- WiFi-signaal (RSSI)
+- vrij geheugen
+- uptime
+
+Testadvies
+1. Upload firmware en LittleFS.
+2. Wis eventueel de browser/PWA-cache of gebruik Ctrl+F5.
+3. Stel MQTT in en controleer de topics met MQTT Explorer.
+4. Verander de volgorde onder Interface aanpassen > Onderste navigatiebalk.
+
+Let op
+De broncode en webbestanden zijn syntactisch gecontroleerd. Een volledige PlatformIO-build kon in deze omgeving niet worden uitgevoerd omdat PlatformIO hier niet beschikbaar is.
