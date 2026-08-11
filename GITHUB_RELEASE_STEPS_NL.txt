@@ -1,0 +1,18 @@
+GITHUB RELEASE v3.2.1
+=====================
+
+1. Zet deze volledige projectversie eerst op de main branch van GitHub.
+2. Controleer op GitHub Actions dat de gewone Build workflow groen is.
+3. Maak daarna pas tag v3.2.1 en push die tag naar GitHub:
+
+   git tag -a v3.2.1 -m "Spa Control v3.2.1"
+   git push origin v3.2.1
+
+4. De workflow .github/workflows/release.yml start automatisch op de tag.
+5. De workflow bouwt en publiceert automatisch:
+   - Spa_Control_v3.2.1_firmware.bin
+   - Spa_Control_v3.2.1_littlefs.bin
+   - SHA256SUMS.txt
+6. GitHub maakt automatisch de Release "Spa Control v3.2.1" met gegenereerde release notes.
+
+Belangrijk: maak de tag pas nadat alle v3.2.1 bestanden op main staan.

@@ -16,6 +16,44 @@ struct MqttSettings {
   String clientId = "LayZSpaController";
   String baseTopic = "layzspa";
   bool homeAssistantDiscovery = true;
+
+  bool publishTemperature = true;
+  bool publishTarget = true;
+  bool publishPower = true;
+  bool publishHeater = true;
+  bool publishHeatingActive = true;
+  bool publishFilter = true;
+  bool publishBubbles = true;
+  bool publishJets = true;
+  bool publishLocked = true;
+  bool publishConnected = true;
+  bool publishReady = true;
+  bool publishRssi = false;
+  bool publishHeap = false;
+  bool publishUptime = false;
+  bool publishFirmware = false;
+  bool publishIp = false;
+  bool publishJson = true;
+  bool publishMaintenance = true;
+
+  String topicTemperature = "temperature";
+  String topicTarget = "target/state";
+  String topicPower = "power/state";
+  String topicHeater = "heater/state";
+  String topicHeatingActive = "heater/active";
+  String topicFilter = "filter/state";
+  String topicBubbles = "bubbles/state";
+  String topicJets = "jets/state";
+  String topicLocked = "lock/state";
+  String topicConnected = "spa/connected";
+  String topicReady = "spa/ready";
+  String topicRssi = "system/rssi";
+  String topicHeap = "system/free_heap";
+  String topicUptime = "system/uptime";
+  String topicFirmware = "system/firmware";
+  String topicIp = "system/ip";
+  String topicJson = "state";
+  String topicMaintenance = "maintenance";
 };
 
 struct EnergySettings {
@@ -51,6 +89,7 @@ public:
   bool load();
   bool save();
   bool reset();
+  uint32_t revision() const;
 
   static const char* temperatureUnitToString(TemperatureUnit unit);
   static TemperatureUnit temperatureUnitFromString(
@@ -64,6 +103,7 @@ private:
   MqttSettings mqttSettings_;
   RegionalSettings regionalSettings_;
   EnergySettings energySettings_;
+  uint32_t revision_ = 0;
 
   void setDefaults();
 };
