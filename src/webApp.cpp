@@ -353,6 +353,16 @@ void handleHardwarePost() {
   server.send(200, "application/json", "{\"ok\":true,\"restartRequired\":true}");
 }
 
+
+void handleHardwareConnectorTest() {
+  eventLog.info("Connectortest gestart: normale spa-communicatie tijdelijk gestopt");
+  const String result = spaInterface.runConnectorTest();
+  eventLog.info(result.indexOf("\"overallPass\":true") >= 0 ?
+                "Connectortest geslaagd; spa-communicatie hervat" :
+                "Connectortest heeft fouten gevonden; spa-communicatie hervat");
+  server.send(200, "application/json", result);
+}
+
 void handleRestart() {
   server.send(200, "text/plain", "Restarting");
   delay(250);
@@ -1223,6 +1233,7 @@ void webAppBegin() {
   server.on("/api/settings/system", HTTP_GET, handleSystemSettingsGet);
   server.on("/api/hardware", HTTP_GET, handleHardwareGet);
   server.on("/api/hardware", HTTP_POST, handleHardwarePost);
+  server.on("/api/hardware/test", HTTP_POST, handleHardwareConnectorTest);
   server.on("/api/schedules", HTTP_GET, handleSchedulesGet);
   server.on("/api/schedules", HTTP_POST, handleSchedulesPost);
   server.on("/api/schedules", HTTP_PUT, handleSchedulesPut);

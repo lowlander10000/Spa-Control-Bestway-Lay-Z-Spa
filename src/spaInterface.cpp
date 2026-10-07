@@ -174,3 +174,106 @@ void SpaInterface::changeTarget(int delta) {
 
   queueCommand(SETTARGET, target);
 }
+
+
+namespace {
+String connectorPinLabel(int gpio) {
+  switch (gpio) {
+    case 16: return F("D0 / GPIO16");
+    case 5: return F("D1 / GPIO5");
+    case 4: return F("D2 / GPIO4");
+    case 0: return F("D3 / GPIO0");
+    case 2: return F("D4 / GPIO2");
+    case 14: return F("D5 / GPIO14");
+    case 12: return F("D6 / GPIO12");
+    case 13: return F("D7 / GPIO13");
+    case 15: return F("D8 / GPIO15");
+    default: return String(F("GPIO")) + gpio;
+  }
+}
+}
+
+String SpaInterface::runConnectorTest() {
+  // Bench connector test, based on the original BWC hardware-test flow:
+  // pump disconnected, both spa connectors connected to each other, ESP powered by USB.
+  // Stop normal CIO/DSP handling BEFORE touching the bus pins. This prevents the
+  // controller itself from being mistaken for live spa traffic during the test.
+  bestway_.stop();
+  delay(100);
+  yield();
+
+  int testPins[6];
+  for (int i = 0; i < 6; ++i) testPins[i] = bestway_.pins[i];
+
+  // Give the stopped bus a short settling time, then release all test pins.
+  delay(20);
+  for (int i = 0; i < 7; ++i) pinMode(bestway_.pins[i], INPUT);
+
+  const char* names[3] = {"data", "clock", "select"};
+  int forwardErrors[3] = {0, 0, 0};
+  int reverseErrors[3] = {0, 0, 0};
+  bool applicable[3] = {true, true, true};
+  bool state = false;
+
+  for (int pair = 0; pair < 3; ++pair) {
+    const int cioPin = testPins[pair];
+    const int dspPin = testPins[pair + 3];
+    if (cioPin == dspPin) {
+      applicable[pair] = false;
+      continue;
+    }
+
+    pinMode(cioPin, OUTPUT);
+    pinMode(dspPin, INPUT);
+    for (int t = 0; t < 100; ++t) {
+      state = !state;
+      digitalWrite(cioPin, state ? HIGH : LOW);
+      delayMicroseconds(100);
+      if ((digitalRead(dspPin) == HIGH) != state) ++forwardErrors[pair];
+    }
+    pinMode(cioPin, INPUT);
+    yield();
+
+    pinMode(dspPin, OUTPUT);
+    pinMode(cioPin, INPUT);
+    for (int t = 0; t < 100; ++t) {
+      state = !state;
+      digitalWrite(dspPin, state ? HIGH : LOW);
+      delayMicroseconds(100);
+      if ((digitalRead(cioPin) == HIGH) != state) ++reverseErrors[pair];
+    }
+    pinMode(dspPin, INPUT);
+    yield();
+  }
+
+  for (int i = 0; i < 7; ++i) pinMode(bestway_.pins[i], INPUT);
+
+  // Restore normal BWC operation immediately after the short test.
+  bestway_.setup();
+  bestway_.loop();
+  connected_ = false;
+  lastPacketAt_ = 0;
+  lastGoodPackets_ = 0;
+  spa.setConnectionState(false);
+
+  bool overall = true;
+  String json;
+  json.reserve(768);
+  json = F("{\"ok\":true,\"pairs\":[");
+  for (int pair = 0; pair < 3; ++pair) {
+    if (pair) json += ',';
+    const bool pairOk = applicable[pair] && forwardErrors[pair] == 0 && reverseErrors[pair] == 0;
+    if (applicable[pair] && !pairOk) overall = false;
+    json += F("{\"name\":\""); json += names[pair];
+    json += F("\",\"applicable\":"); json += applicable[pair] ? F("true") : F("false");
+    json += F(",\"cioPin\":\""); json += connectorPinLabel(testPins[pair]);
+    json += F("\",\"dspPin\":\""); json += connectorPinLabel(testPins[pair + 3]);
+    json += F("\",\"forwardErrors\":"); json += String(forwardErrors[pair]);
+    json += F(",\"reverseErrors\":"); json += String(reverseErrors[pair]);
+    json += F(",\"pass\":"); json += pairOk ? F("true") : F("false");
+    json += '}';
+  }
+  json += F("],\"overallPass\":"); json += overall ? F("true") : F("false");
+  json += F(",\"powerTested\":false,\"audioTested\":false}");
+  return json;
+}

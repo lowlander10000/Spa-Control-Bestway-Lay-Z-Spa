@@ -21,6 +21,8 @@ namespace {
 
   constexpr unsigned long CONNECT_TIMEOUT_MS = 15000;
   constexpr unsigned long RECONNECT_INTERVAL_MS = 30000;
+  constexpr unsigned long AP_SHUTDOWN_GRACE_MS = 8000;
+  constexpr unsigned long PROVISION_RESTART_DELAY_MS = 3500;
 
   const char* AP_SSID = "LayZSpa-Setup";
   const char* AP_PASSWORD = "12345678";
@@ -54,6 +56,10 @@ namespace {
 
   bool accessPointActive = false;
   bool savePendingCredentials = false;
+  bool accessPointShutdownPending = false;
+  unsigned long accessPointShutdownAt = 0;
+  bool provisionRestartPending = false;
+  unsigned long provisionRestartAt = 0;
 
   void writeStringToEeprom(int address, int maxLength, const String& value) {
     for (int i = 0; i < maxLength; i++) {
@@ -138,6 +144,9 @@ namespace {
   }
 
   void startAccessPoint() {
+    accessPointShutdownPending = false;
+    accessPointShutdownAt = 0;
+
     if (accessPointActive) {
       return;
     }
@@ -160,6 +169,9 @@ namespace {
   }
 
   void stopAccessPoint() {
+    accessPointShutdownPending = false;
+    accessPointShutdownAt = 0;
+
     if (!accessPointActive) {
       return;
     }
@@ -169,6 +181,43 @@ namespace {
     WiFi.mode(WIFI_STA);
 
     Serial.println("Access Point uitgeschakeld");
+  }
+
+  void scheduleAccessPointShutdown() {
+    if (!accessPointActive) return;
+    accessPointShutdownPending = true;
+    accessPointShutdownAt = millis() + AP_SHUTDOWN_GRACE_MS;
+    Serial.println("Access Point blijft nog 8 seconden actief voor WiFi-statusoverdracht");
+  }
+
+  void handleAccessPointShutdown() {
+    if (!accessPointShutdownPending || !accessPointActive) return;
+    if (WiFi.status() != WL_CONNECTED) {
+      accessPointShutdownPending = false;
+      accessPointShutdownAt = 0;
+      return;
+    }
+    if ((long)(millis() - accessPointShutdownAt) >= 0) stopAccessPoint();
+  }
+
+  void scheduleProvisionRestart() {
+    provisionRestartPending = true;
+    provisionRestartAt = millis() + PROVISION_RESTART_DELAY_MS;
+    Serial.println("Eerste WiFi-configuratie gelukt; gecontroleerde herstart over 3,5 seconden");
+  }
+
+  void handleProvisionRestart() {
+    if (!provisionRestartPending) return;
+    if (WiFi.status() != WL_CONNECTED) {
+      provisionRestartPending = false;
+      provisionRestartAt = 0;
+      return;
+    }
+    if ((long)(millis() - provisionRestartAt) < 0) return;
+
+    Serial.println("Herstart na eerste succesvolle WiFi-configuratie");
+    delay(50);
+    ESP.restart();
   }
 
   void beginConnection(
@@ -196,7 +245,7 @@ namespace {
     connectionState = WifiConnectionState::Connecting;
     connectStartedAt = millis();
 
-    WiFi.mode(WIFI_AP_STA);
+    WiFi.mode(accessPointActive ? WIFI_AP_STA : WIFI_STA);
     WiFi.disconnect(false);
 
     if (pendingUseDhcp) {
@@ -248,7 +297,9 @@ namespace {
       connectionState = WifiConnectionState::Connected;
       lastError = "";
 
-      if (savePendingCredentials) {
+      const bool freshlyProvisioned = savePendingCredentials;
+
+      if (freshlyProvisioned) {
         savedSsid = pendingSsid;
         savedPassword = pendingPassword;
         savedUseDhcp = pendingUseDhcp;
@@ -271,7 +322,11 @@ namespace {
       Serial.print("IP-adres: ");
       Serial.println(WiFi.localIP());
 
-      stopAccessPoint();
+      if (freshlyProvisioned) {
+        scheduleProvisionRestart();
+      } else {
+        scheduleAccessPointShutdown();
+      }
       return;
     }
 
@@ -343,17 +398,17 @@ void wifiBegin() {
   WiFi.persistent(false);
   WiFi.setAutoReconnect(false);
   WiFi.hostname(WIFI_HOSTNAME);
-  WiFi.mode(WIFI_AP_STA);
-
   loadCredentials();
-  startAccessPoint();
 
   if (!savedSsid.isEmpty()) {
+    WiFi.mode(WIFI_STA);
     beginConnection(
       savedSsid, savedPassword, false, savedUseDhcp,
       savedIp, savedGateway, savedSubnet, savedDns1, savedDns2
     );
   } else {
+    WiFi.mode(WIFI_AP_STA);
+    startAccessPoint();
     connectionState = WifiConnectionState::Idle;
   }
 }
@@ -362,6 +417,8 @@ void wifiLoop() {
   handleScanState();
   handleConnectionState();
   handleLostConnection();
+  handleAccessPointShutdown();
+  handleProvisionRestart();
 }
 
 bool wifiStartScan() {
@@ -573,7 +630,7 @@ String wifiGetStatusJson() {
   json += "\",\"hostname\":\"";
   json += escapeJson(wifiHostname());
 
-  json += "\",\"firmware\":\"v3.0.1";
+  json += "\",\"firmware\":\"v3.2.6";
   json += "\",\"cpu\":";
   json += String(ESP.getCpuFreqMHz());
 
@@ -600,6 +657,16 @@ String wifiGetStatusJson() {
 
   json += "\",\"apMode\":";
   json += wifiIsAccessPointActive() ? "true" : "false";
+  json += ",\"apShutdownPending\":";
+  json += accessPointShutdownPending ? "true" : "false";
+  json += ",\"apShutdownInMs\":";
+  if (accessPointShutdownPending && (long)(accessPointShutdownAt - millis()) > 0) json += String(accessPointShutdownAt - millis());
+  else json += "0";
+  json += ",\"provisionRestartPending\":";
+  json += provisionRestartPending ? "true" : "false";
+  json += ",\"provisionRestartInMs\":";
+  if (provisionRestartPending && (long)(provisionRestartAt - millis()) > 0) json += String(provisionRestartAt - millis());
+  else json += "0";
   json += ",\"apSsid\":\"";
   json += escapeJson(wifiAccessPointSsid());
   json += "\",\"apIp\":\"";
@@ -649,6 +716,8 @@ bool wifiForgetCredentials() {
   pendingSsid = "";
   pendingPassword = "";
   savePendingCredentials = false;
+  provisionRestartPending = false;
+  provisionRestartAt = 0;
   connectionState = WifiConnectionState::Idle;
   lastReconnectAttempt = millis();
   lastError = "";

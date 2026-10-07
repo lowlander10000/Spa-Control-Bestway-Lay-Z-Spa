@@ -520,6 +520,7 @@ function showView(viewName) {
     logs: "Diagnostiek",
     settings: "Instellingen",
     hardware: "Hardware",
+    hardwareTest: "Connectortest",
     control: "Bedieningspaneel",
     maintenance: "Onderhoud",
     personalization: "Interface aanpassen",
@@ -653,6 +654,7 @@ function resetWifiModal() {
   document.getElementById("wifiIpMode").value = "dhcp";
   ["wifiStaticIp","wifiGateway","wifiDns1","wifiDns2"].forEach(id => document.getElementById(id).value = "");
   document.getElementById("wifiSubnet").value = "255.255.255.0";
+  document.getElementById("wifiConnectProgress")?.classList.add("hidden");
   toggleWifiStaticFields();
 }
 async function scanWifiNetworks() {
@@ -812,93 +814,50 @@ function isValidIpv4(value) {
 
 async function connectSelectedWifi(event) {
   event.preventDefault();
-
-  const password =
-    document.getElementById("wifiPassword").value;
-
-  const button =
-    document.getElementById("wifiConnectButton");
-
-  if (!selectedNetwork) {
-    showToast(tr("Kies eerst een netwerk."), true);
-    return;
-  }
-
-  button.disabled = true;
-  button.innerText = tr("Verbinden...");
-
-  const mode = document.getElementById("wifiIpMode").value;
-  const ip = document.getElementById("wifiStaticIp").value.trim();
-  const gateway = document.getElementById("wifiGateway").value.trim();
-  const subnet = document.getElementById("wifiSubnet").value.trim();
-  const dns1 = document.getElementById("wifiDns1").value.trim();
-  const dns2 = document.getElementById("wifiDns2").value.trim();
-
-  if (mode === "static" && (![ip, gateway, subnet].every(isValidIpv4) || (dns1 && !isValidIpv4(dns1)) || (dns2 && !isValidIpv4(dns2)))) {
-    showToast(tr("Controleer de vaste IP-instellingen."), true);
-    return;
-  }
-
-  const body = new URLSearchParams({
-    ssid: selectedNetwork,
-    password,
-    mode,
-    ip,
-    gateway,
-    subnet,
-    dns1,
-    dns2
-  });
-
-  try {
-    const response = await fetch(
-      "/api/wifi/connect",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type":
-            "application/x-www-form-urlencoded;charset=UTF-8"
-        },
-        body: body.toString()
-      }
-    );
-
-    const result = await response.json();
-
-    if (!response.ok || !result.ok) {
-      throw new Error(
-        result.error ||
-          tr("Verbinden kon niet starten")
-      );
+  const password=document.getElementById("wifiPassword").value;
+  const button=document.getElementById("wifiConnectButton");
+  const backButton=document.getElementById("wifiBackButton");
+  if(!selectedNetwork){showToast(tr("Kies eerst een netwerk."),true);return;}
+  const mode=document.getElementById("wifiIpMode").value;
+  const ip=document.getElementById("wifiStaticIp").value.trim();
+  const gateway=document.getElementById("wifiGateway").value.trim();
+  const subnet=document.getElementById("wifiSubnet").value.trim();
+  const dns1=document.getElementById("wifiDns1").value.trim();
+  const dns2=document.getElementById("wifiDns2").value.trim();
+  if(mode==="static"&&(![ip,gateway,subnet].every(isValidIpv4)||(dns1&&!isValidIpv4(dns1))||(dns2&&!isValidIpv4(dns2)))){showToast(tr("Controleer de vaste IP-instellingen."),true);return;}
+  button.disabled=true;if(backButton)backButton.disabled=true;button.innerText=tr("Verbinden...");
+  setWifiConnectProgress("connecting",tr("Verbinden met WiFi…"),tr("De Spa Control probeert verbinding te maken met het gekozen netwerk."));
+  const body=new URLSearchParams({ssid:selectedNetwork,password,mode,ip,gateway,subnet,dns1,dns2});
+  try{
+    const response=await fetch("/api/wifi/connect",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},body:body.toString()});
+    const result=await response.json();
+    if(!response.ok||!result.ok)throw new Error(result.error||tr("Verbinden kon niet starten"));
+    setWifiConnectProgress("connecting",tr("Wachten op verbinding…"),tr("Dit kan enkele seconden duren. Laat dit venster open."));
+    const finalStatus=await waitForWifiConnection(22000);
+    if(!finalStatus.connected){
+      const message=finalStatus.error||tr("Verbinden mislukt. Controleer het wachtwoord.");
+      setWifiConnectProgress("error",tr("Verbinden mislukt"),message+" "+tr("LayZSpa-Setup blijft beschikbaar om het opnieuw te proberen."));
+      showToast(message,true);return;
     }
-
-    const finalStatus =
-      await waitForWifiConnection(20000);
-
-    if (!finalStatus.connected) {
-      throw new Error(
-        finalStatus.error ||
-          tr("Verbinden mislukt. Controleer het wachtwoord.")
-      );
-    }
-
-    showToast(
-      `Verbonden. Nieuw IP: ${
-        finalStatus.ip || tr("onbekend")
-      }`
-    );
-
-    setTimeout(() => {
-      closeWifiModal();
-      loadWifiStatus();
-    }, 700);
-  } catch (error) {
-    showToast(error.message, true);
-  } finally {
-    button.disabled = false;
-    button.innerText = tr("Verbinden");
-  }
+    const newIp=finalStatus.ip||"";
+    setWifiConnectProgress("success",tr("Verbonden met WiFi"),tr("De verbinding is gelukt. Spa Control start automatisch opnieuw op. Verbind je telefoon of laptop met je normale WiFi en open daarna het nieuwe IP-adres."),newIp);
+    showToast(`${tr("Verbonden. Nieuw IP:")} ${newIp||tr("onbekend")} · ${tr("Automatische herstart…")}`);
+  }catch(error){
+    const message=(error&&error.message)?error.message:tr("Verbinding kon niet worden gecontroleerd.");
+    setWifiConnectProgress("error",tr("Verbinding kon niet worden gecontroleerd"),message+" "+tr("Controleer of LayZSpa-Setup nog beschikbaar is en probeer zo nodig opnieuw."));
+    showToast(message,true);
+  }finally{button.disabled=false;if(backButton)backButton.disabled=false;button.innerText=tr("Verbinden");}
 }
+
+function setWifiConnectProgress(state,title,detail,ip=""){
+  const panel=document.getElementById("wifiConnectProgress");if(!panel)return;
+  panel.classList.remove("hidden","connecting","success","error");panel.classList.add(state||"connecting");
+  setText("wifiConnectProgressTitle",title||"");setText("wifiConnectProgressDetail",detail||"");
+  const ipWrap=document.getElementById("wifiConnectIpWrap"),ipValue=document.getElementById("wifiConnectIp"),openButton=document.getElementById("wifiOpenSpaButton");
+  const hasIp=!!ip&&ip!=="0.0.0.0";if(ipWrap)ipWrap.classList.toggle("hidden",!hasIp);if(ipValue)ipValue.textContent=hasIp?ip:"--";
+  if(openButton){openButton.classList.toggle("hidden",!hasIp);openButton.href=hasIp?`http://${ip}/`:"#";openButton.textContent=tr("Open Spa Control");}
+}
+
 
 async function forgetWifi() {
   const confirmed = confirm(
@@ -948,42 +907,23 @@ async function forgetWifi() {
   }
 }
 async function waitForWifiConnection(timeoutMs) {
-  const startedAt = Date.now();
-
-  while (Date.now() - startedAt < timeoutMs) {
+  const startedAt=Date.now();let lastStatus=null;
+  while(Date.now()-startedAt<timeoutMs){
     await sleep(500);
-
-    const response = await fetch(
-      "/api/wifi/status",
-      {
-        cache: "no-store"
-      }
-    );
-
-    if (!response.ok) {
-      continue;
-    }
-
-    const status = await response.json();
-
-    if (
-      status.connected ||
-      status.status === "connected"
-    ) {
-      return status;
-    }
-
-    if (status.status === "failed") {
-      return status;
+    try{
+      const response=await fetch("/api/wifi/status",{cache:"no-store"});
+      if(!response.ok)continue;
+      const status=await response.json();lastStatus=status;
+      if(status.connected||status.state==="connected")return status;
+      if(status.state==="failed")return status;
+    }catch(error){
+      setWifiConnectProgress("connecting",tr("Spa Control wisselt van netwerk…"),tr("De verbinding met het setupnetwerk kan hierbij tijdelijk wegvallen. Wacht enkele seconden."));
     }
   }
-
-  return {
-    connected: false,
-    status: "failed",
-    error: "Verbindingstime-out"
-  };
+  if(lastStatus&&lastStatus.state==="failed")return lastStatus;
+  return{connected:false,state:"failed",error:tr("Verbinding-time-out. Controleer het WiFi-wachtwoord en probeer opnieuw.")};
 }
+
 
 
 async function restartEsp() {
@@ -1875,6 +1815,63 @@ async function loadHardwareSettings() {
   } catch (error) { showToast(error.message, "error"); }
 }
 
+
+function updateHardwareTestButton() {
+  const confirmed = document.getElementById("hwTestConfirm")?.checked === true;
+  const button = document.getElementById("hwTestStart");
+  if (button) button.disabled = !confirmed;
+}
+
+function hardwareTestName(name) {
+  if (name === "data") return tr("Data");
+  if (name === "clock") return tr("Clock");
+  return tr("Select / Latch");
+}
+
+function renderHardwareTestResults(result) {
+  const list = document.getElementById("hwTestResults");
+  const summary = document.getElementById("hwTestSummary");
+  if (!list || !summary) return;
+
+  const pairs = Array.isArray(result.pairs) ? result.pairs : [];
+  list.innerHTML = pairs.map(pair => {
+    const applicable = pair.applicable !== false;
+    const pass = applicable && pair.pass === true;
+    const cls = applicable ? (pass ? "pass" : "fail") : "na";
+    const status = applicable ? (pass ? tr("GOED") : tr("FOUT")) : tr("N.v.t.");
+    const detail = applicable
+      ? `${escapeHtml(pair.cioPin || "--")} ↔ ${escapeHtml(pair.dspPin || "--")} · ${tr("heen")}: ${Number(pair.forwardErrors||0)} · ${tr("terug")}: ${Number(pair.reverseErrors||0)}`
+      : tr("Niet van toepassing op deze hardwareconfiguratie");
+    return `<article class="hwtest-result ${cls}"><span class="hwtest-status-dot ${cls}"></span><div><strong>${escapeHtml(hardwareTestName(pair.name))}</strong><small>${detail}</small></div><b>${status}</b></article>`;
+  }).join("");
+
+  const overallPass = result.overallPass === true;
+  summary.className = `hwtest-summary ${overallPass ? "pass" : "fail"}`;
+  summary.innerHTML = `<span class="hwtest-status-dot ${overallPass ? "pass" : "fail"}"></span><div><strong>${overallPass ? tr("Connectortest geslaagd") : tr("Connectortest heeft fouten gevonden")}</strong><small>${overallPass ? tr("Alle geteste signaalparen werken in beide richtingen.") : tr("Controleer de rode verbindingen, connectoren, solderingen en level-shifter.")}</small></div>`;
+}
+
+async function runHardwareConnectorTest() {
+  const confirmed = document.getElementById("hwTestConfirm")?.checked === true;
+  if (!confirmed) { showToast(tr("Bevestig eerst dat de module los van de pomp is."), true); return; }
+  const button = document.getElementById("hwTestStart");
+  const summary = document.getElementById("hwTestSummary");
+  if (button) { button.disabled = true; button.textContent = tr("Test bezig…"); }
+  if (summary) summary.innerHTML = `<span class="hwtest-status-dot testing"></span><div><strong>${tr("Connectortest bezig…")}</strong><small>${tr("De signaallijnen worden in beide richtingen getest.")}</small></div>`;
+  try {
+    const response = await fetch("/api/hardware/test", {method:"POST", cache:"no-store"});
+    const result = await response.json().catch(()=>({}));
+    if (response.status === 409 && result.error === "spaConnected") throw new Error(tr("Test geblokkeerd: er is nog actieve communicatie met de spa. Trek eerst de netstekker uit."));
+    if (!response.ok || !result.ok) throw new Error(tr("Connectortest mislukt"));
+    renderHardwareTestResults(result);
+    showToast(result.overallPass ? tr("Connectortest geslaagd") : tr("Connectortest heeft fouten gevonden"), !result.overallPass);
+  } catch (error) {
+    if (summary) summary.innerHTML = `<span class="hwtest-status-dot fail"></span><div><strong>${tr("Test niet uitgevoerd")}</strong><small>${escapeHtml(error.message || tr("Connectortest mislukt"))}</small></div>`;
+    showToast(error.message || tr("Connectortest mislukt"), true);
+  } finally {
+    if (button) { button.textContent = tr("Start volledige connectortest"); updateHardwareTestButton(); }
+  }
+}
+
 async function saveHardwareSettings() {
   const value = id => Number(document.getElementById(id).value || 0);
   const cfg = {
@@ -2108,7 +2105,7 @@ render=function(){baseRender();
   updateSmartInsight();
 };
 const baseShowView=showView;
-showView=function(viewName){baseShowView(viewName);const titles={dashboard:"Bestway Lay-Z-Spa",planner:"Planner",history:"Historie",energy:"Energie",logs:"Diagnostiek",settings:"Instellingen",hardware:"Hardware",control:"Bedieningspaneel",personalization:"Interface aanpassen",maintenance:"Onderhoud",info:"Informatie"};setText("pageTitle",tr(titles[viewName]||"Bestway Lay-Z-Spa"));setTimeout(()=>translateDom(document.querySelector(`#${viewName}View`)||document.body),0);};
+showView=function(viewName){baseShowView(viewName);const titles={dashboard:"Bestway Lay-Z-Spa",planner:"Planner",history:"Historie",energy:"Energie",logs:"Diagnostiek",settings:"Instellingen",hardware:"Hardware",hardwareTest:"Connectortest",control:"Bedieningspaneel",personalization:"Interface aanpassen",maintenance:"Onderhoud",info:"Informatie"};setText("pageTitle",tr(titles[viewName]||"Bestway Lay-Z-Spa"));setTimeout(()=>translateDom(document.querySelector(`#${viewName}View`)||document.body),0);};
 function updateLocalizedFileInputs(){
   document.querySelectorAll(".localized-file-input").forEach(wrapper=>{
     const input=wrapper.querySelector('input[type="file"]');
@@ -2158,4 +2155,4 @@ function initSettingsAccordions() {
 }
 
 const observer=new MutationObserver(mutations=>{for(const m of mutations){m.addedNodes.forEach(n=>{if(n.nodeType===Node.TEXT_NODE)translateTextNode(n);else if(n.nodeType===Node.ELEMENT_NODE)translateDom(n);});}});
-document.addEventListener("DOMContentLoaded",()=>{resetLiveControls();initSettingsAccordions();loadLanguageSettings();loadAppearanceSettings();loadWidgetSettings();applyDashboardOrder();loadDashboardOrderEditor();applyDashboardButtonOrder();loadDashboardButtonOrderEditor();initializeLocalizedFileInputs();loadWeatherSettings();loadMaintenance();fetchWeather();scheduleWeatherRefresh();const unitSelect=document.getElementById("temperatureUnit");if(unitSelect){unitSelect.addEventListener("change",()=>{preferredTemperatureUnit=unitSelect.value||"Celsius";localStorage.setItem("layzspaTemperatureUnit",preferredTemperatureUnit);applyTemperatureUnit();});}observer.observe(document.body,{childList:true,subtree:true});if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js?v=3216").catch(()=>{});});
+document.addEventListener("DOMContentLoaded",()=>{resetLiveControls();initSettingsAccordions();loadLanguageSettings();loadAppearanceSettings();loadWidgetSettings();applyDashboardOrder();loadDashboardOrderEditor();applyDashboardButtonOrder();loadDashboardButtonOrderEditor();initializeLocalizedFileInputs();loadWeatherSettings();loadMaintenance();fetchWeather();scheduleWeatherRefresh();const unitSelect=document.getElementById("temperatureUnit");if(unitSelect){unitSelect.addEventListener("change",()=>{preferredTemperatureUnit=unitSelect.value||"Celsius";localStorage.setItem("layzspaTemperatureUnit",preferredTemperatureUnit);applyTemperatureUnit();});}observer.observe(document.body,{childList:true,subtree:true});if("serviceWorker" in navigator)navigator.serviceWorker.register("/sw.js?v=3230").catch(()=>{});});

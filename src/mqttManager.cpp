@@ -547,7 +547,7 @@ void MqttManager::publishState() {
   pub(cfg.publishRssi,cfg.topicRssi,String(WiFi.RSSI()));
   pub(cfg.publishHeap,cfg.topicHeap,String(ESP.getFreeHeap()));
   pub(cfg.publishUptime,cfg.topicUptime,spa.uptime());
-  pub(cfg.publishFirmware,cfg.topicFirmware,"3.2.1");
+  pub(cfg.publishFirmware,cfg.topicFirmware,"3.2.6");
   pub(cfg.publishIp,cfg.topicIp,WiFi.localIP().toString());
   pub(cfg.publishJson,cfg.topicJson,spa.toJson());
   if(cfg.publishMaintenance){

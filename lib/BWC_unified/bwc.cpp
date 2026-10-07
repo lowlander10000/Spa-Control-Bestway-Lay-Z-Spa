@@ -352,7 +352,7 @@ void BWC::play_sound()
         dsp->dsp_toggles.jets_change    || dsp->dsp_toggles.power_change || 
         dsp->dsp_toggles.pump_change    || dsp->dsp_toggles.unit_change
     ) 
-        _accord();
+        _beep();
     /* Lock button sound is taken care of in _handleStateChanges() */
 }
 

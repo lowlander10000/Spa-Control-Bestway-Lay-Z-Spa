@@ -2,11 +2,11 @@
 
 <html lang="nl">
 <head>
-<meta content="3.2.1" name="app-version"/>
+<meta content="3.2.6" name="app-version"/>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Spa Control</title>
-<link href="/css/app.css?v=3215" rel="stylesheet"/>
+<link href="/css/app.css?v=3230" rel="stylesheet"/>
 <link href="/manifest.json?v=3203" rel="manifest"/>
 <link href="/icons/favicon-32.png?v=3203" rel="icon" sizes="32x32" type="image/png"/>
 <link href="/icons/apple-touch-icon.png?v=3203" rel="apple-touch-icon" sizes="180x180"/>
@@ -416,6 +416,33 @@ Opslaan
 <button class="primary-action" onclick="saveHardwareSettings()" style="width:100%;" type="button">Hardware opslaan</button>
 <p class="hint">Nieuwe hardware-instellingen worden na een herstart actief.</p>
 </section>
+<section class="settings-card hardware-test-entry">
+<div class="settings-title"><span class="settings-icon">🧪</span><div><h2>Connectortest</h2><p>Controleer de signaalverbindingen van de print buiten de pomp</p></div></div>
+<button class="secondary-action" onclick="showView('hardwareTest')" style="width:100%;" type="button">Connectortest openen</button>
+</section>
+</section>
+<section class="view" id="hardwareTestView">
+<section class="page-head"><div><span class="kicker">Hardwarediagnostiek</span><h2>Connectortest</h2><p>Gebaseerd op de originele BWC-hardwaretest</p></div><button class="secondary-action compact" onclick="showView('hardware')">Terug</button></section>
+<section class="settings-card hwtest-warning">
+<div class="settings-title"><span class="settings-icon">⚠️</span><div><h2>Veilig aansluiten</h2><p>Voer deze test alleen uit buiten de pomp.</p></div></div>
+<div class="hwtest-steps">
+<div><span>1</span><p>Trek de netstekker van de spa uit het stopcontact.</p></div>
+<div><span>2</span><p>Haal de WiFi-module uit de pomp.</p></div>
+<div><span>3</span><p>Steek de twee spa-connectors van de module in elkaar.</p></div>
+<div><span>4</span><p>Voed alleen de ESP via USB en open deze pagina via WiFi.</p></div>
+</div>
+<label class="toggle-line hwtest-confirm"><input id="hwTestConfirm" type="checkbox" onchange="updateHardwareTestButton()"/> Ik bevestig dat de module niet met de pomp is verbonden.</label>
+<button class="primary-action" id="hwTestStart" onclick="runHardwareConnectorTest()" style="width:100%;" type="button" disabled>Start volledige connectortest</button>
+</section>
+<section class="settings-card">
+<div class="hwtest-summary" id="hwTestSummary"><span class="hwtest-status-dot idle"></span><div><strong>Nog niet getest</strong><small>De test controleert de drie bidirectionele signaalparen.</small></div></div>
+<div class="hwtest-results" id="hwTestResults">
+<article class="hwtest-result pending"><span class="hwtest-status-dot idle"></span><div><strong>Data</strong><small>CIO data ↔ DSP data</small></div><b>--</b></article>
+<article class="hwtest-result pending"><span class="hwtest-status-dot idle"></span><div><strong>Clock</strong><small>CIO clock ↔ DSP clock</small></div><b>--</b></article>
+<article class="hwtest-result pending"><span class="hwtest-status-dot idle"></span><div><strong>Select / Latch</strong><small>CIO CS/LD ↔ DSP CS/LD</small></div><b>--</b></article>
+</div>
+<p class="hint">5V, GND en de aparte audiolijn worden door deze digitale loopbacktest niet gemeten.</p>
+</section>
 </section>
 <section class="view" id="plannerView"><section class="settings-card"><div class="settings-title"><span class="settings-icon">📅</span><div><h2>Planner</h2><p>Weekprogramma</p></div></div><div class="planner-actions"><button class="primary-action" onclick="openScheduleModal()">+ Schema toevoegen</button><button class="secondary-action" onclick="deleteSelectedSchedules()">Aangevinkte verwijderen</button></div><div id="plannerGrid"><div class="settings-card"><h3>Maandag</h3><div class="schedule-list" id="day-maandag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Dinsdag</h3><div class="schedule-list" id="day-dinsdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Woensdag</h3><div class="schedule-list" id="day-woensdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Donderdag</h3><div class="schedule-list" id="day-donderdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Vrijdag</h3><div class="schedule-list" id="day-vrijdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Zaterdag</h3><div class="schedule-list" id="day-zaterdag"><em>Nog geen schema's</em></div></div><div class="settings-card"><h3>Zondag</h3><div class="schedule-list" id="day-zondag"><em>Nog geen schema's</em></div></div></div></section></section>
 <section class="view" id="historyView">
@@ -481,8 +508,8 @@ Opslaan
 <div><span class="kicker">Bestway Lay-Z-Spa</span><h2 data-i18n="Premium Spa Control">Premium Spa Control</h2></div>
 </section>
 <section class="info-grid">
-<article><span data-i18n="Firmware">Firmware</span><strong>v3.2.1</strong><small>Stable release</small></article>
-<article><span data-i18n="Webinterface">Webinterface</span><strong>v3.2.1</strong><small>LittleFS</small></article>
+<article><span data-i18n="Firmware">Firmware</span><strong>v3.2.6</strong><small>Connector test controlled bus pause</small></article>
+<article><span data-i18n="Webinterface">Webinterface</span><strong>v3.2.6</strong><small>LittleFS</small></article>
 </section>
 <section class="settings-card">
 <div class="settings-title">
@@ -576,8 +603,16 @@ Opslaan
 <label>Primaire DNS<input id="wifiDns1" inputmode="decimal" placeholder="192.168.1.1"/></label>
 <label>Secundaire DNS<input id="wifiDns2" inputmode="decimal" placeholder="1.1.1.1 (optioneel)"/></label>
 </div>
+<div class="wifi-connect-progress hidden" id="wifiConnectProgress" role="status" aria-live="polite">
+<div class="wifi-connect-spinner" aria-hidden="true"></div>
+<div class="wifi-connect-copy">
+<strong id="wifiConnectProgressTitle">Verbinden met WiFi…</strong>
+<small id="wifiConnectProgressDetail">Wachten op verbinding…</small>
+<div class="wifi-connect-ip hidden" id="wifiConnectIpWrap"><span>Nieuw IP-adres</span><b id="wifiConnectIp">--</b></div>
+<a class="primary-action wifi-open-spa hidden" id="wifiOpenSpaButton" href="#" target="_self">Open Spa Control</a>
+</div></div>
 <div class="modal-actions">
-<button class="secondary-action" onclick="backToNetworks()" type="button">Terug</button>
+<button class="secondary-action" id="wifiBackButton" onclick="backToNetworks()" type="button">Terug</button>
 <button class="primary-action" id="wifiConnectButton" type="submit">Verbinden</button>
 </div>
 </form>
@@ -621,6 +656,6 @@ Opslaan
 </div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="/js/app.js?v=3220"></script>
+<script src="/js/app.js?v=3230"></script>
 </body>
 </html>

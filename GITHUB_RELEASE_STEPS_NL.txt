@@ -1,18 +1,26 @@
-GITHUB RELEASE v3.2.1
-=====================
+GITHUB RELEASE v3.2.6
 
-1. Zet deze volledige projectversie eerst op de main branch van GitHub.
-2. Controleer op GitHub Actions dat de gewone Build workflow groen is.
-3. Maak daarna pas tag v3.2.1 en push die tag naar GitHub:
+1. Test lokaal:
+   - PlatformIO: Clean
+   - Build
+   - Build Filesystem Image
+   - Firmware en LittleFS op de ESP testen
 
-   git tag -a v3.2.1 -m "Spa Control v3.2.1"
-   git push origin v3.2.1
+2. Kopieer de INHOUD van deze projectmap naar de hoofdmap van de GitHub-repository.
+   Laat bestaande repositorybestanden zoals README.md, LICENSE, docs en Screenshots staan als ze niet in deze map zitten.
+   Kopieer de map .pio NIET mee.
 
-4. De workflow .github/workflows/release.yml start automatisch op de tag.
-5. De workflow bouwt en publiceert automatisch:
-   - Spa_Control_v3.2.1_firmware.bin
-   - Spa_Control_v3.2.1_littlefs.bin
+3. Commit en push naar main met bijvoorbeeld:
+   Release v3.2.6
+
+4. Maak daarna tag v3.2.6 en push die:
+   git tag -a v3.2.6 -m "Spa Control v3.2.6"
+   git push origin v3.2.6
+
+5. .github/workflows/release.yml bouwt automatisch firmware + LittleFS en maakt de GitHub Release aan.
+
+6. Controleer GitHub > Actions. De build moet groen zijn. Controleer daarna Releases op:
+   - Spa_Control_v3.2.6_firmware.bin
+   - Spa_Control_v3.2.6_littlefs.bin
+   - Spa_Control_v3.2.6_FULL.zip
    - SHA256SUMS.txt
-6. GitHub maakt automatisch de Release "Spa Control v3.2.1" met gegenereerde release notes.
-
-Belangrijk: maak de tag pas nadat alle v3.2.1 bestanden op main staan.

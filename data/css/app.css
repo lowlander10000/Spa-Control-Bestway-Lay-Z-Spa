@@ -733,6 +733,24 @@ h1 {
 :root[data-theme="light"] { --bg:#eef4f8; --panel:rgba(255,255,255,.76); --panel2:rgba(255,255,255,.94); --line:rgba(7,31,49,.12); --text:#0b2233; --muted:#60798a; }
 :root[data-theme="light"] body { background:radial-gradient(circle at 50% -18%,#bfe7ff 0%,transparent 45%),linear-gradient(180deg,#f8fcff,#e9f1f6); }
 :root[data-theme="light"] .modal { background:linear-gradient(160deg,#ffffff,#eaf3f8); color:var(--text); }
+
+:root[data-theme="light"] .network-item {
+  color: var(--text);
+  background: rgba(255,255,255,.9);
+  border-color: rgba(7,31,49,.14);
+}
+
+:root[data-theme="light"] .network-item:hover {
+  background: rgba(25,168,255,.12);
+}
+
+:root[data-theme="light"] .network-name small {
+  color: #526b7a;
+}
+
+:root[data-theme="light"] .signal {
+  color: #08794f;
+}
 :root[data-theme="light"] input,:root[data-theme="light"] select { color:var(--text); background:rgba(255,255,255,.85); }
 .icon-action { width:42px;height:42px;border-radius:14px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:18px;cursor:pointer; }
 .top { position:sticky;top:0;z-index:40;padding:10px 0;background:linear-gradient(180deg,var(--bg),transparent);backdrop-filter:blur(8px); }
@@ -2080,3 +2098,41 @@ body.compact-cards .settings-card,body.compact-cards .premium-device,body.compac
 #energyView .energy-metrics{margin-bottom:20px;}
 #energyView > .settings-card{margin-top:20px;}
 @media(max-width:760px){#energyView .energy-metrics{margin-bottom:16px;}#energyView > .settings-card{margin-top:16px;}}
+
+
+/* v3.2.2 - duidelijke WiFi-verbindingsstatus + schone herstart na provisioning */
+.wifi-connect-progress{display:flex;gap:14px;align-items:flex-start;padding:15px;margin-top:2px;border:1px solid var(--line);border-radius:16px;background:rgba(25,168,255,.08)}
+.wifi-connect-progress.hidden{display:none!important}.wifi-connect-spinner{flex:0 0 22px;width:22px;height:22px;margin-top:2px;border:3px solid rgba(25,168,255,.22);border-top-color:currentColor;border-radius:50%;animation:wifiSpin .85s linear infinite}
+.wifi-connect-progress.success .wifi-connect-spinner,.wifi-connect-progress.error .wifi-connect-spinner{animation:none;border:0;width:24px;height:24px}.wifi-connect-progress.success .wifi-connect-spinner::before{content:"✓";font-size:24px;font-weight:900}.wifi-connect-progress.error .wifi-connect-spinner::before{content:"!";font-size:22px;font-weight:900}
+.wifi-connect-copy{min-width:0;flex:1;display:grid;gap:5px}.wifi-connect-copy strong{font-size:15px}.wifi-connect-copy small{color:var(--muted);line-height:1.4}.wifi-connect-ip{display:flex;justify-content:space-between;gap:12px;margin-top:5px;padding-top:8px;border-top:1px solid var(--line)}
+.wifi-connect-ip.hidden,.wifi-open-spa.hidden{display:none!important}.wifi-open-spa{display:inline-flex;justify-content:center;align-items:center;text-decoration:none;margin-top:7px;min-height:44px}@keyframes wifiSpin{to{transform:rotate(360deg)}}
+
+
+/* v3.2.6 - Connector hardware test / controlled bus pause */
+.hwtest-warning { border-color:color-mix(in srgb,var(--orange) 38%,var(--line)); }
+.hwtest-steps { display:grid;gap:10px;margin:14px 0 18px; }
+.hwtest-steps>div { display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,.04); }
+.hwtest-steps span { width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(255,159,67,.17);color:var(--orange);font-weight:800; }
+.hwtest-steps p { margin:0;color:var(--text); }
+.hwtest-confirm { margin:14px 0; }
+.hwtest-summary,.hwtest-result { display:grid;grid-template-columns:22px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:18px;padding:14px;background:rgba(255,255,255,.045); }
+.hwtest-summary { margin-bottom:12px; }
+.hwtest-results { display:grid;gap:10px; }
+.hwtest-summary strong,.hwtest-result strong { display:block; }
+.hwtest-summary small,.hwtest-result small { display:block;color:var(--muted);margin-top:4px;line-height:1.35; }
+.hwtest-result>b { font-size:12px;letter-spacing:.06em; }
+.hwtest-status-dot { width:14px;height:14px;border-radius:50%;display:block;background:var(--muted);box-shadow:0 0 0 4px rgba(143,168,191,.10); }
+.hwtest-status-dot.pass { background:var(--green);box-shadow:0 0 13px var(--green),0 0 0 4px rgba(0,223,154,.12); }
+.hwtest-status-dot.fail { background:var(--red);box-shadow:0 0 13px var(--red),0 0 0 4px rgba(255,77,94,.12); }
+.hwtest-status-dot.na,.hwtest-status-dot.idle { background:var(--muted);box-shadow:none; }
+.hwtest-status-dot.testing { background:var(--orange);box-shadow:0 0 13px var(--orange);animation:hwtestPulse .8s ease-in-out infinite alternate; }
+.hwtest-result.pass>b { color:var(--green); }
+.hwtest-result.fail>b { color:var(--red); }
+.hwtest-result.na>b { color:var(--muted); }
+@keyframes hwtestPulse { from{opacity:.45;transform:scale(.82)} to{opacity:1;transform:scale(1.08)} }
+:root[data-theme="light"] .hwtest-steps>div,
+:root[data-theme="light"] .hwtest-summary,
+:root[data-theme="light"] .hwtest-result { background:rgba(255,255,255,.88);border-color:rgba(7,31,49,.14); }
+:root[data-theme="light"] .hwtest-result.pass { background:rgba(0,185,127,.07); }
+:root[data-theme="light"] .hwtest-result.fail { background:rgba(220,45,65,.07); }
+@media (max-width:560px){ .hwtest-summary,.hwtest-result{grid-template-columns:18px 1fr auto;padding:12px}.hwtest-result small{font-size:11px}.hwtest-result>b{font-size:11px} }

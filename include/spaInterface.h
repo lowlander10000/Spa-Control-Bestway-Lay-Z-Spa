@@ -29,6 +29,7 @@ public:
   void pressTimer();
   void setTargetTemperature(int targetC);
   void changeTarget(int delta);
+  String runConnectorTest();
 
 private:
   BWC bestway_;
